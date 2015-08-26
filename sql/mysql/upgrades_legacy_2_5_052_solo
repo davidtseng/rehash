@@ -1,0 +1,3222 @@
+# This is the upgrade file for SQL. What does this mean to you?
+# If you are a developer you should leave notes here as to what
+# was done and when. This includes inserts, alter tables and deletions.
+# Changes should always be appended, and when a tag is applied,
+# an End/Start comment should be appended.
+#
+# "End of X" means that tag X was applied "here" (at this point in
+#      the file, on the date given)..
+# "Start of Y" is just intended to clarify that work on the next tag
+#      after X started at the same time that X was tagged.
+
+#
+
+# End of T_2_5_0_52, Start of T_2_5_0_53 - 2005/03/15
+
+INSERT INTO message_codes (code, type, seclev) VALUES (18, 'Invalid HTML Input', 100);
+
+# Changes for plugins/Daypass (ignore if not using that plugin)
+ALTER TABLE daypass_available ADD COLUMN minduration SMALLINT NOT NULL DEFAULT 0 AFTER adnum, ADD COLUMN aclreq VARCHAR(32) DEFAULT NULL;
+ALTER TABLE daypass_keys ADD COLUMN earliest_confirmable DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00' AFTER key_given;
+INSERT INTO vars (name, value, description) VALUES ('daypass_adnum', '13', 'Which ad number to pass to getAd?');
+INSERT INTO vars (name, value, description) VALUES ('daypass_offer_onlywhentmf', '0', 'Offer daypasses only when there is a story in The Mysterious Future?');
+
+# End of T_2_5_0_53, Start of T_2_5_0_54 - 2005/03/29
+
+INSERT INTO vars (name, value, description) VALUES ('daypass_tz', 'PST', 'What timezone are daypasses considered to be in (this determines where "midnight" starts and ends the day)');
+
+# End of T_2_5_0_54, Start of T_2_5_0_55 - 2005/03/31
+
+# Changes for plugins/Dilemma (ignore if not using that plugin)
+INSERT INTO vars (name, value, description) VALUES ('dilemma_draw_graph_ticks', '100', 'Draw graph every this many ticks (roughly -- before this tickcount, draw every time; after 20x this tickcount, draw 1/3 as often');
+ALTER TABLE dilemma_agents ADD COLUMN trid INT UNSIGNED NOT NULL AFTER daid, DROP INDEX alive, ADD INDEX trid_alive (trid, alive);
+UPDATE dilemma_agents SET trid=1;
+RENAME TABLE dilemma_info TO dilemma_tournament_info;
+ALTER TABLE dilemma_tournament_info ADD COLUMN trid INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, CHANGE COLUMN alive active ENUM("no", "yes") DEFAULT "yes" NOT NULL, CHANGE COLUMN max_runtime max_tick INT UNSIGNED DEFAULT 1000 NOT NULL, CHANGE COLUMN food_per_time food_per_tick FLOAT UNSIGNED DEFAULT 1.0 NOT NULL, DROP COLUMN mean_meets, ADD COLUMN min_meets INT UNSIGNED DEFAULT 10 NOT NULL, ADD COLUMN max_meets INT UNSIGNED DEFAULT 30 NOT NULL, ADD COLUMN graph_drawn_tick INT UNSIGNED DEFAULT 0 NOT NULL;
+UPDATE dilemma_tournament_info SET trid=1;
+CREATE TABLE dilemma_stat_names ( dstnmid SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, name CHAR(16) NOT NULL, PRIMARY KEY (dstnmid) );
+INSERT INTO dilemma_stat_names (dstnmid, name) VALUES (1, 'num_alive');
+INSERT INTO dilemma_stat_names (dstnmid, name) VALUES (2, 'sumfood');
+ALTER TABLE dilemma_stats ADD COLUMN trid INT UNSIGNED NOT NULL FIRST, CHANGE COLUMN tick tick INT UNSIGNED DEFAULT 0 NOT NULL, CHANGE COLUMN dsid dsid SMALLINT UNSIGNED DEFAULT 0 NOT NULL, ADD COLUMN dstnmid SMALLINT UNSIGNED DEFAULT 0 NOT NULL, DROP INDEX tick, DROP INDEX dsid, ADD UNIQUE ttdd (trid, tick, dsid, dstnmid), ADD INDEX tdd (trid, dsid, dstnmid);
+UPDATE dilemma_stats SET trid=1;
+UPDATE dilemma_stats SET dstnmid=1 WHERE name='num_alive';
+UPDATE dilemma_stats SET dstnmid=2 WHERE name='sumfood';
+ALTER TABLE dilemma_stats DROP COLUMN name;
+ALTER TABLE dilemma_meetlog ADD COLUMN trid INT UNSIGNED NOT NULL AFTER meetid, DROP INDEX tick, ADD INDEX trid_tick (trid, tick);
+UPDATE dilemma_meetlog SET trid=1;
+
+# End of T_2_5_0_55, Start of T_2_5_0_56 - 2005/04/05
+
+# Changes for plugins/Daypass (ignore if not using that plugin)
+UPDATE vars SET value='60' WHERE name='daypass_cache_expire';
+INSERT INTO vars (name, value, description) VALUES ('daypass_offer_method', '0', 'How to determine whether a daypass is offered: 0=use daypass_available table, 1=check adpos text against regex');
+INSERT INTO vars (name, value, description) VALUES ('daypass_offer_method1_acl', '', 'ACL required to be offered a daypass (blank for none, i.e. all users eligible)');
+INSERT INTO vars (name, value, description) VALUES ('daypass_offer_method1_adpos', '31', 'If daypass_offer_method is 1, which ad position to check?');
+INSERT INTO vars (name, value, description) VALUES ('daypass_offer_method1_minduration', '10', 'Minimum time allowed before click');
+INSERT INTO vars (name, value, description) VALUES ('daypass_offer_method1_regex', '!placeholder for ad position', 'If daypass_offer_method is 1, what regex on that ad text tells us that a daypass is available? A leading ! inverts logic (regex match means daypass not available)');
+
+# End of T_2_5_0_56, Start of T_2_5_0_57 - 2005/04/08
+
+#############
+# be careful with below, make sure right for your site
+
+# this is not required, but highly advised; it shouldn't have an adverse
+# effect on most sites, but on sites that use alternative charsets ... dunno
+UPDATE vars SET value = '1' WHERE name = 'draconian_charset';
+
+# look at this carefully, make sure it has all the tags you want, and none you don't
+# note that you cannot introduce new tags this way anymore, those must be added in
+# the code directly, then *enabled* here
+REPLACE INTO vars (name, value, description) VALUES ('approvedtags','b|i|p|br|a|ol|ul|li|dl|dt|dd|em|strong|tt|blockquote|div|ecode','Tags that you can use');
+
+# we add N option and use it for alt
+REPLACE INTO vars (name, value, description) VALUES ('approvedtags_attr', 'a:href_RU img:src_RU,alt_N,width,height,longdesc_U', 'definition of approvedtags attributes in the following format a:href_RU img:src_RU,alt,width,height,longdesc_U see Slash::Utility::Data.pm for more details');
+
+# this should not need any modification
+REPLACE INTO vars (name, value, description) VALUES ('approvedtags_break','p|br|ol|ul|li|dl|dt|dd|blockquote|div|img|hr|h1|h2|h3|h4|h5|h6','Tags that break words (see breakHtml())');
+
+# this still won't be in effect unless sub or sup is in approvedtags, of course
+INSERT INTO vars (name, value, description) VALUES ('nest_su_maxdepth','3','Maximum depth to which <SUP> and <SUB> tags can be nested');
+
+# HTML is recommended, but if you are using XHTML, by all means, set this to 1
+INSERT INTO vars (name, value, description) VALUES ('xhtml','0','Boolean for whether we are using XHTML');
+
+#
+#############
+
+# End of T_2_5_0_57, Start of T_2_5_0_58 - 2005/04/13
+
+# End of T_2_5_0_58, Start of T_2_5_0_59 - 2005/04/15
+
+#############
+# be careful with below, make sure right for your site
+
+# add span, div, tables, and slash
+INSERT INTO vars (name, value, description) VALUES ('approvedtags_attr_admin', 'div:id,class,title,style,dir,lang span:id,class,title,style,dir,lang slash:type_R,id,href_U,story,nickname,uid,user,align,width,height,title table:align,bgcolor,border,cellpadding,cellspacing,width tr:align,bgcolor,valign th:align,bgcolor,colspan,height,rowspan,valign,width td:align,bgcolor,colspan,height,rowspan,valign,width', 'see approvedtags_attr for more details');
+
+#
+#############
+
+# End of T_2_5_0_59, Start of T_2_5_0_60 - 2005/04/15
+
+CREATE TABLE al2 (
+    srcid       BIGINT UNSIGNED NOT NULL DEFAULT '0',
+    value       INT UNSIGNED NOT NULL DEFAULT '0',
+    updatecount INT UNSIGNED NOT NULL DEFAULT '0',
+    PRIMARY KEY (srcid)
+);
+
+CREATE TABLE al2_log (
+    al2lid      INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    srcid       BIGINT UNSIGNED NOT NULL DEFAULT '0',
+    ts      DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
+    adminuid    MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+    al2tid      TINYINT UNSIGNED NOT NULL DEFAULT '0',
+    val     ENUM('set', 'clear') DEFAULT NULL,
+    PRIMARY KEY (al2lid),
+    INDEX ts (ts),
+    INDEX srcid_ts (srcid, ts)
+);
+
+CREATE TABLE al2_log_comments (
+    al2lid      INT UNSIGNED NOT NULL DEFAULT '0',
+    comment     TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (al2lid)
+);
+
+CREATE TABLE al2_types (
+    al2tid      TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    bitpos      TINYINT UNSIGNED DEFAULT NULL,
+    name        VARCHAR(30) NOT NULL DEFAULT '',
+    title       VARCHAR(64) NOT NULL DEFAULT '',
+    PRIMARY KEY (al2tid),
+    UNIQUE name (name),
+    UNIQUE bitpos (bitpos)
+);
+
+INSERT INTO al2_types VALUES (1, NULL, 'comment', 'Comment');
+INSERT INTO al2_types VALUES (2, 0, 'ban', 'Ban');
+INSERT INTO al2_types VALUES (3, 1, 'expired', 'Expired');
+INSERT INTO al2_types VALUES (4, 2, 'nopost', 'No Comment Post');
+INSERT INTO al2_types VALUES (5, 3, 'nopalm', 'No Palm');
+INSERT INTO al2_types VALUES (6, 4, 'norss', 'No RSS');
+INSERT INTO al2_types VALUES (7, 5, 'nosubmit', 'No Story Submit');
+INSERT INTO al2_types VALUES (8, 6, 'trusted', 'Trusted');
+INSERT INTO al2_types VALUES (9, 7, 'proxy', 'Valid Proxy');
+
+# run utils/accesslisttoal2 -u YOURSITEUSERNAME
+
+# End of T_2_5_0_60, Start of T_2_5_0_61 - 2005/04/26
+
+# End of T_2_5_0_61, Start of T_2_5_0_62 - 2005/04/28
+
+REPLACE INTO vars (name, value, description) VALUES ('approvedtags_attr_admin', 'a:href_U,name,title div:id,class,title,style,dir,lang span:id,class,title,style,dir,lang slash:type_R,id,href_U,story,nickname,uid,user,align,width,height,title table:align,bgcolor,border,cellpadding,cellspacing,width tr:align,bgcolor,valign th:align,bgcolor,colspan,height,rowspan,valign,width td:align,bgcolor,colspan,height,rowspan,valign,width', 'inherits from approvedtags_attr');
+
+# End of T_2_5_0_62, Start of T_2_5_0_63 - 2005/05/03
+
+# End of T_2_5_0_63, Start of T_2_5_0_64 - 2005/05/10
+
+# End of T_2_5_0_64, Start of T_2_5_0_65 - 2005/05/10
+
+ALTER TABLE al2_log ADD INDEX al2tid_val_srcid (al2tid, val, srcid);
+ALTER TABLE al2 ADD INDEX value (value);
+
+# End of T_2_5_0_65, Start of T_2_5_0_66 - 2005/05/17
+
+# Caution!  "Update statements that refer to user variables
+# (that is, variables of the form @var_name) are badly
+# replicated in 3.23 and 4.0. This is fixed in 4.1."
+# <http://dev.mysql.com/doc/mysql/en/replication-features.html>
+# If you are running reader DBs, you will definitely want to
+# check the al2_types table after the following command has
+# replicated to see if the data is correct.
+SELECT @maxbitpos := MAX(bitpos) FROM al2_types;
+INSERT INTO al2_types VALUES (NULL, @maxbitpos+1, 'nopostanon', 'No Comment Post Anon');
+
+# add class/style for table elements, for convenience
+REPLACE INTO vars (name, value, description) VALUES ('approvedtags_attr_admin', 'a:href_U,name,title div:id,class,title,style,dir,lang span:id,class,title,style,dir,lang slash:type_R,id,href_U,story,nickname,uid,user,align,width,height,title table:align,bgcolor,border,cellpadding,cellspacing,width,style,class tr:align,bgcolor,valign,style,class th:align,bgcolor,colspan,height,rowspan,valign,width,style,class td:align,bgcolor,colspan,height,rowspan,valign,width,style,class', 'inherits from approvedtags_attr');
+
+INSERT INTO vars (name, value, description) VALUES ('comments_anon_speed_limit','0','seconds delay before repeat posting for anonymous user.  If 0 uses defaults to speed_limit for all users');
+
+INSERT INTO vars (name, value, description) VALUES ('comments_anon_speed_limit_mult','1', 'Multiply speedlimit by this amount for each comment previously posted in the past 24 hours');
+
+# Jabber support for ircslash
+INSERT INTO vars (name, value, description) VALUES ('jabberslash','0','Enable the ircslash task for Jabber, and connect to a Jabber channel whenever slashd starts');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_channel','jabberslash','Which channel to join');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_channel_password','','Password for jabberslash_channel');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_channel_server','jabberslash','Which Jabber server to use for the channel (defaults to jabberslash_server)');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_ircname','','Account name to use on Jabber server (defaults to "(slashsite) slashd")');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_nick','','Nick to use on IRC server (has a reasonable default); is used for jabber Resource and channel alias');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_password','','Password for jabberslash_ircname account');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_port','5222','Port to use on Jabber server');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_server','jabber.org','Which Jabber server to connect to');
+INSERT INTO vars (name, value, description) VALUES ('jabberslash_tls','0','Try to connect using TLS?');
+INSERT INTO vars (name, value, description) VALUES ('ircslash_jabber_users','','Pipe-separated list of userids ("userid" or "userid/resource") to send Jabber messages to, instead of sending to channel');
+INSERT INTO vars (name, value, description) VALUES ('ircslash_lcr_sites','','Pipe-separated list of site names to use for lcr cmd');
+
+# End of T_2_5_0_66, Start of T_2_5_0_67 - 2005/05/24
+
+# End of T_2_5_0_67, Start of T_2_5_0_68 - 2005/05/28
+
+ALTER TABLE open_proxies ADD COLUMN dur FLOAT DEFAULT NULL AFTER port;
+
+# End of T_2_5_0_68, Start of T_2_5_0_69 - 2005/05/31
+
+# Changes for plugins/HumanConf (ignore if not using that plugin)
+UPDATE vars SET description='HumanConf switch for posting comments: 0=off, 1=anon only, 2=also logged-in with low karma' WHERE name='hc_sw_comments';
+
+# End of T_2_5_0_69, Start of T_2_5_0_70 - 2005/06/01
+
+# End of T_2_5_0_70, Start of T_2_5_0_71 - 2005/06/07
+
+INSERT INTO vars (name, value, description) VALUES ('formkey_minloggedinkarma','1','The min karma a user must have to "count" as a logged-in user for some purposes');
+
+ALTER TABLE open_proxies CHANGE COLUMN xff xff VARCHAR(40) DEFAULT NULL;
+
+# Changes for plugins/HumanConf (ignore if not using that plugin)
+
+# End of T_2_5_0_72, Start of T_2_5_0_73 - 2005/06/14
+
+# End of T_2_5_0_73, Start of T_2_5_0_74 - 2005/06/21
+
+# End of T_2_5_0_74, Start of T_2_5_0_75 - 2005/06/28
+
+# Changes for plugins/HumanConf (ignore if not using that plugin)
+# and if you use the first, you may want to customize the second
+
+# SLASHCLUSTER LAST UPDATED HERE
+
+# End of T_2_5_0_75, Start of T_2_5_0_76 - 2005/07/20
+
+INSERT INTO vars (name, value, description) VALUES ('ssihead_inc_pages', 'article', 'Pages that should always use their own .inc for ssihead');
+INSERT INTO vars (name, value, description) VALUES ('css_expire','3600','Time in seconds before css cache expires');
+
+CREATE TABLE css_type (
+	ctid TINYINT(3) UNSIGNED NOT NULL AUTO_INCREMENT,
+	name VARCHAR(32) NOT NULL DEFAULT '',
+	ordernum TINYINT(3) UNSIGNED NOT NULL DEFAULT '0',
+	PRIMARY KEY  (ctid)
+);
+
+CREATE TABLE css (
+	csid int(11) NOT NULL AUTO_INCREMENT,
+	rel VARCHAR(32) DEFAULT 'stylesheet',
+	type VARCHAR(32) DEFAULT 'text/css',
+	media VARCHAR(32) DEFAULT 'screen, projection',
+	file VARCHAR(64),
+	title VARCHAR(32),
+	skid INT(11) DEFAULT '0',
+	page VARCHAR(32) DEFAULT '',
+	admin ENUM('no','yes') DEFAULT 'no',
+	theme VARCHAR(32) DEFAULT '',
+	ctid TINYINT(4) NOT NULL DEFAULT '0',
+	ordernum int(11) DEFAULT '0',
+	ie_cond VARCHAR(16) DEFAULT '',
+	PRIMARY KEY  (csid),
+	KEY ctid (ctid),
+	KEY page_skid (page,skid),
+	KEY skid_page (skid,page)
+);
+
+INSERT INTO css_type (ctid, name, ordernum) VALUES (1,'base',1);
+INSERT INTO css_type (ctid, name, ordernum) VALUES (2,'page',2);
+INSERT INTO css_type (ctid, name, ordernum) VALUES (3,'theme',3);
+INSERT INTO css_type (ctid, name, ordernum) VALUES (4,'user_theme',4);
+INSERT INTO css_type (ctid, name, ordernum) VALUES (5,'print',5);
+
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','base.css','Slashcode',0,'','no','',1,0);
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','comments.css','Slashcode',0,'comments','no','',2,0);
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','comments.css','Slashcode',0,'article','no','',2,0);
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','print','print.css','Print',0,'','no','',5,0);
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','admin.css','Slashcode',0,'','yes','',1,0);
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','comments.css','Slashcode',0,'pollBooth','no','',2,0);
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','slashcode_lite.css','Slashcode',0,'','no','light',4,0);
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','comments.css','Slashcode',0,'journal','no','',2,0);
+
+
+# Run this only if you don't already have this CSS file already in the table or whatever theme you may be using instead 
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','slashcode.css','Slashcode',0,'','no','',3,0);
+
+# Caution!  "Update statements that refer to user variables
+# (that is, variables of the form @var_name) are badly
+# replicated in 3.23 and 4.0. This is fixed in 4.1."
+# <http://dev.mysql.com/doc/mysql/en/replication-features.html>
+# If you are running reader DBs, you will definitely want to
+# check the css table after the following command has
+# replicated to see if the data is correct.
+SELECT @page_ctid := ctid FROM css_type where name="page";
+# Run this only if you have search installed and don't
+# currently have this line in your css file
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','search.css','Slashcode',0,'search','no','',@page_ctid,0);
+# Run this only if you have pollBooth installed and
+# don't currently have this line in your css file
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','polls.css','Slashcode',0,'pollBooth','no','',@page_ctid,0);
+
+UPDATE css set title="" where file="print.css";
+
+DELETE FROM vars where name = 'ssihead_inc_pages';
+
+# run this unless you have a reason not to (like, you have your own html;article;default)
+DELETE FROM templates WHERE name = 'header' AND skin = 'default' AND page='article';
+UPDATE vars set description="Time in seconds before css cache expires" where name="css_expire";
+
+INSERT INTO vars (name, value, description) VALUES ('feed_types', 'rss|atom', 'Feed types allowed.');
+
+# End of T_2_5_0_76, Start of T_2_5_0_77 - 2005/07/27
+
+UPDATE css_type SET ordernum = 6 where name="print";
+UPDATE css_type SET ordernum = 5 where name="user_theme";
+
+INSERT INTO css_type (ctid, name, ordernum) VALUES (6,'skin',4);
+INSERT INTO vars (name, value, description) VALUES ('accesslog_css_skip', '1', 'Skip logging css hits to accesslog table?');
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','screen, projection','comments.css','Slashcode',0,'metamod','no','',2,0);
+INSERT INTO vars (name, value, description) VALUES ('users_menu_no_display', '0', 'Hide users menu?');
+
+# End of T_2_5_0_77, Start of T_2_5_0_78 - 2005/08/25
+
+# Changes for plugins/ScheduleShifts (ignore if not using that plugin,
+# and you almost certainly are not using it)
+ALTER TABLE shifts;
+
+# End of T_2_5_0_78, Start of T_2_5_0_79 - 2005/09/01
+
+# Double check before running this.  No title is best unless you know you need a title on something custom you set up. 
+UPDATE css set title='';
+
+INSERT INTO css (rel, type, media, file, title, skid, page, admin, theme, ctid, ordernum) VALUES ('stylesheet','text/css','handheld','handheld.css','',0,'','no','',7,0);
+INSERT INTO css_type (ctid, name, ordernum) VALUES (7, 'handheld', 7);
+
+# Verify you want to delete these.  They are no longer needed by default slashcode theme, but may be needed if you have this template in your theme
+DELETE FROM templates WHERE name = "dispComment" AND page = "misc" AND skin = "light";
+DELETE FROM templates WHERE name = "dispStory" AND page = "misc" AND skin = "light";
+DELETE FROM templates WHERE name = "fancybox" AND page = "misc" AND skin = "light";
+DELETE FROM templates WHERE name = "storylink" AND page = "misc" AND skin = "light";
+DELETE FROM templates WHERE name = "titlebar" AND page = "misc" AND skin = "light";
+
+ALTER TABLE css ADD skin VARCHAR(32) DEFAULT ''AFTER skid;
+ALTER TABLE css DROP INDEX page_skid;
+ALTER TABLE css DROP INDEX skid_page;
+UPDATE css,skins SET css.skin = skins.name WHERE css.skid=skins.skid;
+ALTER TABLE css DROP skid;
+ALTER TABLE css ADD INDEX page_skin (page,skin);
+ALTER TABLE css ADD INDEX skin_page (skin,page);
+UPDATE css set theme='', skin='light' WHERE theme = "light";
+
+# End of T_2_5_0_79, Start of T_2_5_0_80 - 2005/09/19
+
+# End of T_2_5_0_80, Start of T_2_5_0_81 - 2005/09/21
+
+ALTER TABLE dbs_readerstatus CHANGE COLUMN had_weight had_weight tinyint UNSIGNED DEFAULT 1, CHANGE COLUMN had_weight_adjust had_weight_adjust float UNSIGNED DEFAULT 1;
+
+# End of T_2_5_0_81, Start of T_2_5_0_82 - 2005/09/23
+
+# Changes for plugins/Admin (which you are almost certainly using)
+INSERT INTO vars (name, value, description) VALUES ('ispell_is_really_aspell_with_lang', '', 'Some systems install aspell and a script that mimics the behavior of ispell; if yours does, set this to your preferred language name, e.g. "english"');
+
+DROP TABLE IF EXISTS accesslist;
+
+# End of T_2_5_0_82, Start of T_2_5_0_83 - 2005/09/27
+
+INSERT INTO vars (name, value, description) VALUES ('cvs_tag_currentcode','T_2_5_0_82','The current cvs tag that the code was updated to - this does not affect site behavior but may be useful for your records');
+
+# You almost certainly want to install the plugin ResKey at this point.
+
+# Changes for plugins/ResKey (which you should be using)
+INSERT INTO vars VALUES ('reskey_checks_duration_max-failures_zoo', 4, 'how many failures per reskey');
+INSERT INTO vars VALUES ('reskey_checks_duration_max-failures_comments', 10, 'how many failures per reskey');
+
+UPDATE vars SET value = 'T_2_5_0_83' WHERE name = 'cvs_tag_currentcode';
+
+# End of T_2_5_0_83, Start of T_2_5_0_84 - 2005/10/04
+
+# Install MIME::Types if any of your Slash sites are using the Blob plugin.
+
+# Changes for plugins/Daypass
+ALTER TABLE daypass_keys DROP INDEX uid_daypasskey;
+ALTER TABLE daypass_keys DROP COLUMN uid, ADD COLUMN daid SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER daypasskey;
+ALTER TABLE daypass_keys ADD UNIQUE INDEX daypasskey (daypasskey);
+CREATE TABLE daypass_confcodes (
+	confcode	CHAR(20) NOT NULL DEFAULT '',
+	gooduntil	DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
+	PRIMARY KEY confcode (confcode)
+);
+DROP TABLE daypass_users;
+
+INSERT INTO vars (name, value, description) VALUES ('cvs_tag_currentcode_emit','1','Emit cvs_tag_currentcode revision number in the X-Powered-By header. If you are paranoid or believe in security through obscurity feel free to leave this false, but in the event of a security hole it may help us contact you');
+
+# Changes for plugins/ResKey (which you should be using)
+INSERT IGNORE INTO vars VALUES ('reskey_srcid_masksize', 24, 'which srcid mask size to use for reskeys');
+INSERT IGNORE INTO vars VALUES ('reskey_timeframe', 14400, 'Default timeframe base to use for max-uses (in seconds)');
+
+### do this, but be careful, if you've changed the defaults, to note those changes
+DELETE FROM vars WHERE name LIKE 'reskey_checks_%';
+
+DROP TABLE IF EXISTS reskey_vars;
+CREATE TABLE reskey_vars (
+    rkrid TINYINT UNSIGNED NOT NULL,
+    name VARCHAR(48) DEFAULT '' NOT NULL,
+    value TEXT,
+    description VARCHAR(255),
+    UNIQUE name_rkrid (name, rkrid)
+);
+
+##### comments
+### checks
+
+### vars
+
+##### zoo
+### checks
+
+### vars
+
+##### journal
+### checks
+
+### vars
+
+
+##### journal-soap
+### checks
+
+### vars
+
+UPDATE vars SET value = 'T_2_5_0_84' WHERE name = 'cvs_tag_currentcode';
+
+# End of T_2_5_0_84, Start of T_2_5_0_85 - 2005/10/11
+
+# Changes for plugins/ResKey (which you should be using)
+
+# we only want this for comments, though you may wish it for other things ...
+DELETE FROM reskey_resource_checks WHERE class = 'Slash::ResKey::Checks::ProxyScan';
+
+DROP TABLE IF EXISTS reskey_failures;
+CREATE TABLE reskey_failures (
+    rkid        INT NOT NULL,
+    failure     VARCHAR(255) DEFAULT '' NOT NULL,
+    PRIMARY KEY (rkid)
+);
+
+
+##### pollbooth
+### checks
+
+### vars
+
+
+UPDATE vars SET value = 'T_2_5_0_85' WHERE name = 'cvs_tag_currentcode';
+
+# End of T_2_5_0_85, Start of T_2_5_0_86 - 2005/10/18
+
+DELETE FROM reskey_vars WHERE rkrid=5 AND name='duration_creation-use';
+
+
+INSERT INTO vars (name, value, description) VALUES ('lowbandwidth_bids_regex','_more$','bids we want to show in low bandwidth mode.  NONE if we don\'t want to show any');
+
+ALTER TABLE css ADD lowbandwidth ENUM("no","yes") DEFAULT "no";
+
+# Caution!  "Update statements that refer to user variables
+# (that is, variables of the form @var_name) are badly
+# replicated in 3.23 and 4.0. This is fixed in 4.1."
+# <http://dev.mysql.com/doc/mysql/en/replication-features.html>
+# If you are running reader DBs, you will definitely want to
+# check the css table after the following command has
+# replicated to see if the data is correct.
+#
+# Or if you want to be safe just do the select manually and replace
+# @ut_ctid with the result of the select
+
+SELECT @ut_ctid := ctid FROM css_type where name="user_theme";
+INSERT INTO css (rel, type, media, file, title, skin, page, admin, theme, ctid, ordernum, ie_cond, lowbandwidth) VALUES ('stylesheet','text/css','screen, projection','slashcode_low_bw.css','','','','no','',@ut_ctid, 99, "", "yes");
+
+# Removing light section templates.  Light as a section no longer exists so these can go.
+DELETE FROM templates where skin="light";
+
+
+# Run this perl script for each of your sites' virtual users.  This will set all users with light mode turned on to have 
+# simpledesign and lowbandwidth settings turned on initially
+# Replace virtusername with the virtual user for your site
+# perl -MSlash::Test=virtusername -e 'my $uids = $slashdb->sqlSelectColArrayref("uid","users_prefs","light=1"); $slashdb->setUser($_, {simpledesign => 1, lowbandwidth => 1}) foreach @$uids;'
+
+UPDATE css set theme="light", skin="" WHERE file="slashcode_lite.css";
+
+# 2005-10-26
+UPDATE vars SET value = 'T_2_5_0_86' WHERE name = 'cvs_tag_currentcode';
+
+# You should update all your THEME and PLUGIN files to use css= instead of htdoc= for .css files that are managed through the site's css table
+INSERT INTO vars (name, value, description) VALUES ('css_use_imagedir','0','Place .css files in imagedir instead for your rootdir?  You may want to utilize this if you are using boa or another lightweight webserver to serve images.  Run symlink-tool after switching var');
+
+# If users_acl has a foreign key on users.uid, or journals has one to
+# topics.tid, now's a good time to drop them.  We're not providing SQL
+# for that because I don't think there's a good programmatic way to
+# determine the name of those keys.
+
+# plugins/Journal (ignore if not using that plugin)
+ALTER TABLE journals ADD INDEX uid_date_id (uid, date, id);
+
+
+
+##### submit
+### checks
+##### journal-soap-get
+### checks
+
+### vars
+#INSERT INTO reskey_vars VALUES (7, 'acl',    'reskey_journal-soap', 'If this ACL present, can use resource');
+#INSERT INTO reskey_vars VALUES (7, 'user_is_subscriber', 1, 'Require user to be subscriber');
+
+# 2005-11-01
+UPDATE vars SET value = 'T_2_5_0_87' WHERE name = 'cvs_tag_currentcode';
+
+# This was omitted from PollBooth mysql_dump earlier;  do this only if you
+# have PollBooth installed.  It may or may not do anything, which is OK.
+INSERT IGNORE INTO vars (name, value, description) VALUES ('allow_anon_poll_voting', '1', 'Set this to decide whether anonymous users can vote in polls)');
+
+
+# 2005-11-09
+UPDATE vars SET value = 'T_2_5_0_88' WHERE name = 'cvs_tag_currentcode';
+
+UPDATE vars SET description='Should we be saving incoming submissions for rss' WHERE name='rss_store';
+UPDATE vars SET name='rss_max_items_incoming', description='Max number of rss items shown in a slashbox, by default' WHERE name='max_items';
+INSERT INTO vars (name, value, description) VALUES ('rss_max_items_outgoing','10','Max number of rss items emitted in an rss/rdf/atom feed');
+
+# Add the following if you have the Journal plugin installed
+ALTER TABLE journals ADD submit ENUM ("no", "yes") DEFAULT "no";
+ALTER TABLE journals ADD last_update TIMESTAMP NOT NULL;
+INSERT INTO vars (name, description, value) VALUES ("journal2submit_skid", "skid to submit journal entries to, if not set they go to mainpage skid", 0);
+INSERT INTO vars (name, description, value) VALUES ("journal_allow_journal2submit", "Allow journals to be submitted as submissions?", 0);
+INSERT INTO hooks (param, class, subroutine) VALUES ('journal_save_success', 'Slash::Journal', 'promoteJournal');
+
+# 2005-11-28
+UPDATE vars SET value = 'T_2_5_0_89' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE topic_parents CHANGE COLUMN min_weight min_weight FLOAT DEFAULT 1 NOT NULL;
+ALTER TABLE story_topics_chosen CHANGE COLUMN weight weight FLOAT DEFAULT 1 NOT NULL;
+
+INSERT INTO vars (name, value, description) VALUES ('topiclist_ignore_prefix', '', 'prefix of any topic keywords that should not show up on topic list or hierarchy, leave blank if you don\'t want any ignored');
+INSERT INTO vars (name, value, description) VALUES ('search_ignore_skids', '', 'list of skids that you want to not include in search results.  Delimit skids with |');
+
+DROP TABLE IF EXISTS journal_transfer;
+CREATE TABLE journal_transfer (
+	id MEDIUMINT UNSIGNED NOT NULL,
+	subid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+	stoid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+	PRIMARY key(id)
+);
+
+# 2005-12-06
+UPDATE vars SET value = 'T_2_5_0_90' WHERE name = 'cvs_tag_currentcode';
+
+# Shut down your slashd and webheads before beginning the next commands.
+# You don't want any writes to these tables while this series of commands
+# executes.
+ALTER TABLE users_logtokens ADD COLUMN public ENUM("yes","no") NOT NULL DEFAULT "no" AFTER temp;
+ALTER TABLE users_logtokens DROP INDEX uid_locationid_temp;
+ALTER TABLE users_logtokens ADD UNIQUE uid_locationid_temp_public (uid, locationid, temp, public);
+ALTER TABLE users_logtokens ADD KEY (public);
+# fix admin accounts
+UPDATE users_logtokens, users SET public='yes' WHERE users_logtokens.uid=users.uid AND seclev > 1;
+# Now you can turn your slashd and webheads back on.
+
+# 2005-12-11
+UPDATE vars SET value = 'T_2_5_0_91' WHERE name = 'cvs_tag_currentcode';
+
+# 2005-12-19
+UPDATE vars SET value = 'T_2_5_0_92' WHERE name = 'cvs_tag_currentcode';
+
+# Changes for plugins/Daypass
+INSERT INTO vars (name, value, description) VALUES ('daypass_offer_onlytologgedin', '0', 'If 1, offer a daypass only tologged-in users');
+
+DROP TABLE IF EXISTS discussion_kinds;
+CREATE TABLE discussion_kinds (
+        dkid        TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        name        VARCHAR(30) NOT NULL DEFAULT '',
+        PRIMARY KEY (dkid),
+        UNIQUE name (name)
+);
+
+INSERT INTO discussion_kinds (dkid, name) VALUES (1, 'story');
+INSERT INTO discussion_kinds (dkid, name) VALUES (2, 'user_created');
+# plugins/Journal (ignore if not using that plugin)
+INSERT INTO discussion_kinds (dkid, name) VALUES (NULL, 'journal');
+INSERT INTO discussion_kinds (dkid, name) VALUES (NULL, 'journal-story');
+# plugins/PollBooth (ignore if not using that plugin)
+INSERT INTO discussion_kinds (dkid, name) VALUES (NULL, 'poll');
+
+# You may want to wrap these next lines in a transaction, and if
+# an error occurs you may want to ROLLBACK until you figure it out.
+# On Slashdot this will likely take under 10 minutes.
+# START TRANSACTION;
+ALTER TABLE discussions ADD COLUMN dkid TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER id;
+UPDATE discussions SET last_update=last_update, dkid=2;
+UPDATE discussions, skins SET last_update=last_update, dkid=1 WHERE sid != '' AND discussions.url REGEXP CONCAT('^(http:)?//', skins.hostname, '/article\\.pl\\?sid=(', sid, '|[0-9]+$)');
+UPDATE discussions, discussion_kinds, skins SET last_update=last_update, discussions.dkid=discussion_kinds.dkid WHERE discussion_kinds.name='journal' AND discussions.dkid=2 AND (discussions.url REGEXP CONCAT('^(http:)?//', skins.hostname, '/~[^/]+/journal/[0-9]+$') OR discussions.url REGEXP CONCAT('^(http:)?//', skins.hostname, '/journal\\.pl\\?op=display&id=[0-9]+&uid=', discussions.uid));
+UPDATE discussions, discussion_kinds, skins SET last_update=last_update, discussions.dkid=discussion_kinds.dkid WHERE discussion_kinds.name='poll' AND discussions.dkid=2 AND discussions.url REGEXP CONCAT('^(http:)?//', skins.hostname, '/pollBooth\\.pl\\?(qid=[0-9]+&aid=-1|op=vote&qid=[0-9]+)$');
+# COMMIT;
+
+ALTER TABLE sessions DROP COLUMN logintime;
+
+UPDATE users_info SET bio='' WHERE bio IS NULL;
+ALTER TABLE users_info CHANGE COLUMN bio bio text NOT NULL;
+
+# 2006-01-03
+UPDATE vars SET value = 'T_2_5_0_93' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE remarks MODIFY COLUMN remark VARCHAR(255);
+
+# Changes for plugins/Submit (which you are almost certainly using)
+INSERT INTO vars (name, value, description) VALUES ('submissions_link_relnofollow', '0', 'Add a rel="nofollow" to the submitter\'s vanity link for all submissions?');
+UPDATE vars SET value=REPLACE(value, 'a:href_U,name,title ', 'a:href_U,name,title,rel ') WHERE name='approvedtags_attr_admin';
+
+# 2006-01-11
+UPDATE vars SET value = 'T_2_5_0_94' WHERE name = 'cvs_tag_currentcode';
+
+DELETE FROM sessions;
+ALTER TABLE sessions DROP INDEX uid;
+ALTER TABLE sessions ADD UNIQUE uid (uid);
+
+# Fairly major update to index selection - sectional stories are now by default shown in a brief / abbreviated mode
+# on the mainpage.  This default can be overriden by switching the "brief_sectional_mainpage" var to 0.  A user
+# will still be able to switch on brief mode in their options.  If you want to avoid this remove the options
+# by editting the tildeEd template. 
+#
+# A skins artcount_max now affects the number of stories selected, you should make sure this number is larger than the
+# number of stories you would post on your highest posting days (assuming you want to ensure the index shows all of "today's" stories
+#
+# -- vroom
+
+ALTER TABLE users_index ADD COLUMN story_full_brief_nexus VARCHAR(255) NOT NULL DEFAULT '', ADD COLUMN story_brief_always_nexus VARCHAR(255) NOT NULL DEFAULT '', ADD COLUMN story_full_best_nexus VARCHAR(255) NOT NULL DEFAULT '', ADD COLUMN story_brief_best_nexus VARCHAR(255) NOT NULL DEFAULT "" AFTER story_always_nexus;
+
+INSERT INTO vars (name, value, description) VALUES ("brief_sectional_mainpage", "1", "Show sectional stories in brief form on mainpage? 1 = yes,  0 = don't show");
+
+ALTER TABLE skins ADD COLUMN skinindex ENUM('no', 'yes') DEFAULT 'yes' NOT NULL AFTER storypickable;
+
+# Leaving this set to 0 will allow the current behavior of showing whatever leftover stories are left from the select for the main column of the index
+# Changing this value to something positive will limit the number showing up in the Older Stories Slashbox
+ALTER TABLE skins ADD COLUMN older_stories_max MEDIUMINT UNSIGNED DEFAULT '0' NOT NULL;  
+
+# 2006-01-18
+UPDATE vars SET value = 'T_2_5_0_95' WHERE name = 'cvs_tag_currentcode';
+
+# 2006-01-22
+UPDATE vars SET value = 'T_2_5_0_96' WHERE name = 'cvs_tag_currentcode';
+
+DROP TABLE IF EXISTS signoff;
+CREATE TABLE signoff (
+        soid    MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        stoid   MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+        uid     MEDIUMINT UNSIGNED NOT NULL,
+        signoff_time    TIMESTAMP,
+        PRIMARY KEY(soid),
+        INDEX (stoid)
+);
+
+INSERT INTO vars (name, value, description) VALUES ("gse_mp_max_days_back", "0", "Max days back to go in gSE select for mainpage in instances where we haven't passed an offset / issue -- 0 if you don't want to use this");
+INSERT INTO vars (name, value, description) VALUES ("gse_fallback_min_stoid", "0", "Set by set_gse_min_stoid to define how far back to search max when not passing an issue or offset");
+
+ALTER TABLE skins ADD COLUMN require_acl VARCHAR(32)  DEFAULT '' NOT NULL;
+
+CREATE TABLE globjs (
+        globjid         int UNSIGNED NOT NULL auto_increment,
+        gtid            smallint UNSIGNED NOT NULL,
+        target_id       int UNSIGNED NOT NULL,
+        PRIMARY KEY (globjid),
+        UNIQUE target (gtid, target_id)
+);
+
+CREATE TABLE globj_types (
+        gtid            smallint UNSIGNED NOT NULL auto_increment,
+        maintable       VARCHAR(64) NOT NULL,
+        PRIMARY KEY (gtid),
+        UNIQUE maintable (maintable)
+);
+
+INSERT INTO globj_types VALUES (NULL, 'stories');
+
+# 2006-01-25
+UPDATE vars SET value = 'T_2_5_0_97' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE signoff ADD COLUMN signoff_type VARCHAR(16)  DEFAULT '' NOT NULL;
+INSERT INTO vars (name, value, description) VALUES ("signoff_notify", "0", "Add remark for bot on each signoff / update / save ?");
+INSERT INTO vars (name, value, description) VALUES ("signoff_use", "0", "Use signoff functionalilty?");
+
+DROP TABLE IF EXISTS related_stories;
+CREATE TABLE related_stories (
+        id mediumint(8) unsigned NOT NULL auto_increment,
+        stoid mediumint(8) unsigned default '0',
+        rel_stoid mediumint(8) unsigned default '0',
+        rel_sid varchar(16) NOT NULL default '',
+        title varchar(255) default '',
+        url varchar(255) default '',
+	cid mediumint(8) unsigned NOT NULL default '0',
+	ordernum smallint unsigned NOT NULL default '0',
+        PRIMARY KEY (id),
+        KEY stoid (stoid)
+);
+
+# 2006-02-01
+UPDATE vars SET value = 'T_2_5_0_98' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE reskey_resources CHANGE COLUMN rkrid rkrid SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT;
+ALTER TABLE reskey_resource_checks CHANGE COLUMN rkrid rkrid SMALLINT UNSIGNED NOT NULL;
+ALTER TABLE reskey_vars CHANGE COLUMN rkrid rkrid SMALLINT UNSIGNED NOT NULL;
+ALTER TABLE reskeys CHANGE COLUMN rkrid rkrid SMALLINT UNSIGNED NOT NULL;
+
+ALTER TABLE remarks ADD COLUMN priority SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER stoid;
+ALTER TABLE remarks ADD INDEX priority (priority);
+
+# only do if you already installed Ajax plugin recently ... if you had it installed
+# from awhile ago, important: go back and install the schema, then the dump, files
+# for the plugin
+UPDATE ajax_ops SET reskey_type = 'createuse' WHERE op = 'remarks_fetch';
+
+# 2006-02-08
+UPDATE vars SET value = 'T_2_5_0_99' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE journal_transfer ADD COLUMN updated TINYINT UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE journal_transfer ADD KEY stoid_updated (stoid, updated);
+
+# Changes for plugins/Ajax
+
+INSERT INTO vars (name, value, description) VALUES ('memcached_exptime_story','600','Number of seconds a story record lives in memcached before requiring a re-read from the DB');
+UPDATE vars SET value='60' WHERE name='story_expire';
+
+# 2006-02-15
+UPDATE vars SET value = 'T_2_5_0_100' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('referrer_external_static_redirect','1','If true, redirect anon requests referred from other sites for dynamic article.pl to static .shtml. This can greatly improve chances of surviving aslashdotting');
+
+# Changes for plugins/Ajax
+
+# 2006-02-22
+UPDATE vars SET value = 'T_2_5_0_101' WHERE name = 'cvs_tag_currentcode';
+
+# Changes for plugins/Tags
+UPDATE templates SET page='misc' WHERE name='tagsstorydivtagbox' AND page='index' AND skin='default';
+
+UPDATE users_info, users_hits SET lastaccess = lastclick WHERE users_info.uid=users_hits.uid AND lastaccess < lastclick;
+
+# 2006-02-28
+UPDATE vars SET value = 'T_2_5_0_102' WHERE name = 'cvs_tag_currentcode';
+
+# Changes for plugins/Submit (which you are almost certainly using)
+DROP TABLE IF EXISTS submissions_notes;
+CREATE TABLE submissions_notes (
+        noid mediumint(8) unsigned NOT NULL auto_increment,
+        uid mediumint(8) unsigned NOT NULL default '0',
+        submatch varchar(32) NOT NULL default '',
+        subnote text,
+        time datetime default NULL,
+  PRIMARY KEY  (noid)
+);
+
+# Changes for plugins/Remarks
+
+# Changes for plugins/Tags
+UPDATE vars SET value='^\!?[a-z][a-z0-9/]{0,62}$' WHERE name='tags_tagname_regex';
+DROP TABLE IF EXISTS tag_params;
+CREATE TABLE tag_params (
+        tagid           int UNSIGNED NOT NULL,
+        name            VARCHAR(32) DEFAULT '' NOT NULL,
+        value           VARCHAR(64) DEFAULT '' NOT NULL,
+        UNIQUE tag_name (tagid, name)
+);
+DROP TABLE IF EXISTS tagcommand_adminlog;
+CREATE TABLE tagcommand_adminlog (
+        id              int UNSIGNED NOT NULL AUTO_INCREMENT,
+        cmdtype         VARCHAR(6) NOT NULL,
+        tagnameid       int UNSIGNED NOT NULL,
+        globjid         int UNSIGNED DEFAULT NULL,
+        adminuid        mediumint UNSIGNED NOT NULL,
+        created_at      datetime NOT NULL,
+        PRIMARY KEY id (id),
+        KEY created_at (created_at),
+        KEY tagnameid_globjid (tagnameid, globjid)
+);
+
+# 2006-03-14
+UPDATE vars SET value = 'T_2_5_0_103' WHERE name = 'cvs_tag_currentcode';
+
+DROP TABLE IF EXISTS urls;
+CREATE TABLE urls (
+	url_id INT(10) UNSIGNED NOT NULL auto_increment,
+	url_digest VARCHAR(32) NOT NULL,
+	url TEXT NOT NULL,
+	is_success TINYINT(4),
+	createtime datetime,
+	last_attempt datetime,
+	last_success datetime,
+	believed_fresh_until datetime,
+	status_code SMALLINT(6),
+	reason_phrase VARCHAR(30),
+	content_type VARCHAR(60),
+	initialtitle VARCHAR(255),
+	validatedtitle VARCHAR(255),
+	PRIMARY KEY (url_id),
+	UNIQUE url_digest (url_digest)
+);
+
+INSERT INTO globj_types VALUES (NULL, 'urls');
+
+
+# 2006-03-21
+UPDATE vars SET value = 'T_2_5_0_104' WHERE name = 'cvs_tag_currentcode';
+
+# 2006-03-24
+UPDATE vars SET value = 'T_2_5_0_105' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/Ajax
+UPDATE ajax_ops set reskey_type="use" where op="admin_signoff";
+
+# For bookmarks plugin
+INSERT INTO vars (name, description, value) VALUES ('bookmark_popular_days', "Number of days back to look for popular bookmarks", 1);
+INSERT INTO vars (name, description, value) VALUES ('bookmark_allowed_schemes', "Schemes to allow for bookmarks.  Separate entries with |", "http|https");
+
+# 2006-03-29
+UPDATE vars SET value = 'T_2_5_0_106' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE comments ADD COLUMN last_update TIMESTAMP NOT NULL AFTER date;
+UPDATE comments SET last_update = date;
+
+
+# Changes for plugins/Tags
+INSERT INTO menus VALUES (NULL, 'tagszg', 'Active', 'active', '[% gSkin.rootdir %]/tags',        1, 1, 1);
+INSERT INTO menus VALUES (NULL, 'tagszg', 'Recent', 'recent', '[% gSkin.rootdir %]/tags/recent', 1, 1, 2);
+INSERT INTO menus VALUES (NULL, 'tagszg', 'All',    'all',    '[% gSkin.rootdir %]/tags/all',    1, 1, 3);
+UPDATE vars SET name='tags_stories_examples_pre' WHERE name='tags_stories_examples';
+INSERT INTO vars (name, value, description) VALUES ('tags_stories_examples', '', 'Example tags for stories');
+
+# Changes for plugins/Ajax
+
+# 2006-04-05
+UPDATE vars SET value = 'T_2_5_0_107' WHERE name = 'cvs_tag_currentcode';
+
+# Changes for plugins/Relocate which ONLY need be applied if you
+# installed it pre-June 2004.  Somehow these changes were omitted
+# from this upgrades file at that time.  If you installed it
+# after that time, you already have these changes.
+
+# Updates for plugins/Tags
+UPDATE ajax_ops SET subroutine="ajaxTagHistory" where subroutine = "ajaxTagHistoryStory";
+UPDATE ajax_ops SET op="tags_history" WHERE op="tags_story_history";
+INSERT INTO vars (name, value, description) VALUES ('tags_urls_examples_pre', 'plus minus binspam', 'Example tags for urls');
+INSERT INTO vars (name, value, description) VALUES ('tags_urls_examples', '', 'Example tags for urls');
+INSERT INTO vars (name, value, description) VALUES ('tags_urls_lastscanned', '0', 'The last tagid scanned to update url');
+INSERT INTO vars (name, value, description) VALUES ('tags_urls_top_minscore', '2', 'Minimum score a tag must have to make it into the top tags for a url');
+
+ALTER TABLE urls ADD COLUMN tags_top VARCHAR(255) DEFAULT '' NOT NULL AFTER validatedtitle;
+
+# 2006-04-11
+UPDATE vars SET value = 'T_2_5_0_108' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO globj_types VALUES (NULL, 'submissions');
+INSERT INTO globj_types VALUES (NULL, 'journals');
+DROP TABLE IF EXISTS globj_urls;
+CREATE TABLE globj_urls (
+    id INT UNSIGNED NOT NULL auto_increment,
+    globjid INT UNSIGNED NOT NULL DEFAULT 0,
+    url_id INT UNSIGNED NOT NULL NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE globjid_url_id (globjid, url_id)
+);
+ALTER TABLE urls ADD COLUMN popularity float DEFAULT '0' NOT NULL;
+
+# updates for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_urls_pos_tags', 'plus', '| separated list of tags applied which positively affect url popularity');
+INSERT INTO vars (name, value, description) VALUES ('tags_urls_neg_tags', 'minus|binspam', '| separated list of tags applied which negatively affect url popularity');
+
+# updates for plugins/Bookmark
+UPDATE reskey_vars set value='1' where name='user_seclev' AND rkrid=8;
+DROP TABLE IF EXISTS bookmark_feeds;
+CREATE TABLE bookmark_feeds (
+    id MEDIUMINT UNSIGNED NOT NULL auto_increment,
+    uid MEDIUMINT UNSIGNED NOT NULL,
+    feed VARCHAR(255),
+    tags VARCHAR(255),
+    PRIMARY KEY(id)
+);
+
+# Update for plugins/Ajax
+UPDATE ajax_ops SET subroutine="ajax_learnword" where subroutine = "admin_learnword";
+
+# 2006-04-19
+UPDATE vars SET value = 'T_2_5_0_109' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('url_checker_user_agent', '', 'user Agent to use for url checking task, empty string results in lwp user agent being used');
+
+# 2006-04-26
+UPDATE vars SET value = 'T_2_5_0_110' WHERE name = 'cvs_tag_currentcode';
+
+# Update for plugins/Tags
+CREATE TABLE tagboxes (
+        tbid                    smallint UNSIGNED NOT NULL AUTO_INCREMENT,
+        name                    varchar(32) DEFAULT '' NOT NULL,
+        affected_type           ENUM('user', 'globj') NOT NULL,
+        weight                  float UNSIGNED DEFAULT 1.0 NOT NULL,
+        last_tagid_logged       int UNSIGNED NOT NULL,
+        last_run_completed      datetime,
+        PRIMARY KEY tbid (tbid),
+        UNIQUE name (name)
+);
+CREATE TABLE tagbox_feederlog (
+        tfid            int UNSIGNED NOT NULL AUTO_INCREMENT,
+        created_at      datetime NOT NULL,
+        tbid            smallint UNSIGNED NOT NULL,
+        tagid           int UNSIGNED NOT NULL,
+        affected_id     int UNSIGNED NOT NULL,
+        importance      FLOAT UNSIGNED DEFAULT 1.0 NOT NULL,
+        PRIMARY KEY tfid (tfid),
+        KEY tbid_tagid (tbid, tagid),
+        KEY tbid_affectedid (tbid, affected_id)
+);
+INSERT INTO tagboxes VALUES (NULL, 'tag_count', 'user', '1.0', 0, NULL);
+
+# 2006-05-02
+UPDATE vars SET value = 'T_2_5_0_111' WHERE name = 'cvs_tag_currentcode';
+
+UPDATE tagboxes SET name='TagCountUser' WHERE name='tag_count';
+ALTER TABLE tagboxes ADD COLUMN last_tdid_logged int UNSIGNED NOT NULL, ADD COLUMN last_tuid_logged int UNSIGNED NOT NULL;
+RENAME TABLE tagbox_feederlog TO tagboxlog_feeder;
+CREATE TABLE tagbox_userkeyregexes (
+        name                    varchar(32) NOT NULL,
+        userkeyregex            varchar(255) NOT NULL,
+        UNIQUE name_regex (name, userkeyregex)
+);
+CREATE TABLE tagboxlog_deactivated (
+        tdid            int UNSIGNED NOT NULL AUTO_INCREMENT,
+        tagid           int UNSIGNED NOT NULL,
+        PRIMARY KEY tdid (tdid),
+        KEY tagid (tagid)
+);
+CREATE TABLE tagboxlog_userchange (
+        tuid            int UNSIGNED NOT NULL AUTO_INCREMENT,
+        created_at      datetime NOT NULL,
+        uid             mediumint UNSIGNED NOT NULL,
+        user_key        varchar(32) NOT NULL,
+        value_old       text,
+        value_new       text,
+        PRIMARY KEY tuid (tuid),
+        KEY uid (uid)
+);
+
+# 2006-05-17
+UPDATE vars SET value = 'T_2_5_0_112' WHERE name = 'cvs_tag_currentcode';
+
+# Update for plugins/Tags
+RENAME TABLE tagboxlog_deactivated TO tags_deactivated;
+RENAME TABLE tagboxlog_userchange TO tags_userchange;
+
+# 2006-05-24
+UPDATE vars SET value = 'T_2_5_0_113' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE tagboxlog_feeder CHANGE COLUMN tagid tagid int UNSIGNED DEFAULT NULL AFTER importance, ADD COLUMN tdid int UNSIGNED DEFAULT NULL, ADD COLUMN tuid int UNSIGNED DEFAULT NULL, ADD KEY tbid_tdid (tbid, tdid), ADD KEY tbid_tuid (tbid, tuid);
+
+# 2006-06-01
+UPDATE vars SET value = 'T_2_5_0_114' WHERE name = 'cvs_tag_currentcode';
+
+# 2006-06-07
+UPDATE vars SET value = 'T_2_5_0_115' WHERE name = 'cvs_tag_currentcode';
+
+# 2006-06-13
+UPDATE vars SET value = 'T_2_5_0_116' WHERE name = 'cvs_tag_currentcode';
+
+# 2006-06-20
+UPDATE vars SET value = 'T_2_5_0_117' WHERE name = 'cvs_tag_currentcode';
+
+
+INSERT INTO vars (name, value, description) VALUES ('index_readmore_with_bytes', '0', 'Include bytes / word count in readmore link where applicable?');
+
+# 2006-07-05
+UPDATE vars SET value = 'T_2_5_0_118' WHERE name = 'cvs_tag_currentcode';
+
+# Update for plugins/Tags
+# You can rm the symlink at $SLASH_PREFIX/site/$SITENAME/tasks/tags_update.pl
+# here, if desired.  But it's not necessary, it won't hurt anything.  (The
+# symlink-tool script doesn't yet do this automatically when a task is
+# removed from a THEME/PLUGIN file.)
+# Run `utils/tags_declout.plx VIRTUAL_USER` after running these upgrades
+UPDATE vars SET name='tagbox_top_minscore_stories' WHERE name='tags_stories_top_minscore';
+UPDATE vars SET name='tagbox_top_minscore_urls'    WHERE name='tags_urls_top_minscore';
+UPDATE vars SET name='tagbox_top_urls_tags_pos'    WHERE name='tags_urls_pos_tags';
+UPDATE vars SET name='tagbox_top_urls_tags_neg'    WHERE name='tags_urls_neg_tags';
+DELETE FROM vars WHERE name IN ('tags_stories_lastscanned', 'tags_urls_lastscanned');
+
+# 2006-07-11
+UPDATE vars SET value = 'T_2_5_0_119' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('comments_control_horizontal', '0', 'Is Discussion2 control is configured horizontally?');
+
+# 2006-07-18
+UPDATE vars SET value = 'T_2_5_0_120' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE related_stories CHANGE COLUMN cid cid int UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE moderatorlog CHANGE COLUMN cid cid int UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE comment_text CHANGE COLUMN cid cid int UNSIGNED NOT NULL DEFAULT '0';
+ALTER TABLE comments CHANGE COLUMN cid cid int UNSIGNED NOT NULL AUTO_INCREMENT, ADD COLUMN subject_original ENUM('no', 'yes') DEFAULT 'yes' NOT NULL AFTER subject;
+
+ALTER TABLE urls ADD COLUMN anon_bookmarks MEDIUMINT UNSIGNED DEFAULT 0 NOT NULL;
+
+# Need a CPAN install of Data::JavaScript::Anon
+
+# 2006-08-08
+UPDATE vars SET value = 'T_2_5_0_121' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE comments CHANGE COLUMN subject_original subject_orig ENUM('no', 'yes') DEFAULT 'yes' NOT NULL;
+
+DELETE FROM vars WHERE name IN ('reasons', 'badreasons');
+
+# Updates for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_upvote_tag', 'nod', 'Tag for upvote');
+INSERT INTO vars (name, value, description) VALUES ('tags_downvote_tag', 'nix', 'Tag for downvote');
+
+# 2006-08-15
+UPDATE vars SET value = 'T_2_5_0_122' WHERE name = 'cvs_tag_currentcode';
+
+# Updates for plugins/Relocate
+INSERT IGNORE INTO vars (name, value, description) VALUES ('relocate_href2slash', 0, 'Automatically convert all A HREF tags to SLASH HREF tags, using relocate.pl.');
+INSERT IGNORE INTO vars (name, value, description) VALUES ('relocate_keep_count', 1, 'Keep count of click-thrus in the links_for_stories.count column');
+
+# Updates for plugins/FireHose
+
+# 2006-08-28
+UPDATE vars SET value = 'T_2_5_0_123' WHERE name = 'cvs_tag_currentcode';
+
+# 2006-08-30
+UPDATE vars SET value = 'T_2_5_0_124' WHERE name = 'cvs_tag_currentcode';
+
+# do runtask reskey_purge.pl immediately after running refresh
+DROP TABLE IF EXISTS reskey_hourlysalt;
+CREATE TABLE reskey_hourlysalt (
+    ts          DATETIME DEFAULT '0000-00-00 00:00:00' NOT NULL,
+    salt        VARCHAR(20) DEFAULT '' NOT NULL,
+    UNIQUE ts (ts)
+);
+
+# Updates for plugins/Tags
+UPDATE vars SET description='Example tags for stories before they go live' WHERE name='tags_stories_examples_pre';
+DELETE FROM vars WHERE name in ('tags_reduced_tag_clout', 'tags_reduced_user_clout');
+UPDATE vars SET name=CONCAT(name, 'name') WHERE name IN ('tags_upvote_tag', 'tags_downvote_tag');
+UPDATE vars SET description='Who is allowed to see existing tags on stories (incl. search on them)? 0=nobody 1=admins 2=subscribers 2.5=tags_stories_allowread ACL 3=non-neg. karma 4=all logged in (3,4: up to tags_userfrac_read)' WHERE name='tags_stories_allowread';
+UPDATE vars SET description='Who is allowed to tag stories? 0=nobody 1=admins 2=subscribers 2.5=tags_stories_allowwrite ACL 3=non-neg. karma 4=all logged in (3,4: up to tags_userfrac_write)' WHERE name='tags_stories_allowwrite';
+INSERT INTO vars (name, value, description) VALUES ('tags_userfrac_read', '1', 'Fraction (0.0-1.0) of user UIDs which are allowed to read tags, if tags_*_allow* is set that way');
+INSERT INTO vars (name, value, description) VALUES ('tags_userfrac_write', '0.95', 'Fraction (0.0-1.0) of user UIDs which are allowed to tag, if tags_*_allow* is set that way');
+
+# FYI:  Since you're upgrading from a previous version of Slash, you
+# already have the Metamod plugin's SQL changes applied (columns in
+# users_info, vars, etc.).  This adds the row to your site_info table that
+# offically means Metamod is installed, but actually doing the install
+# would be redundant.  Only SQL changes that are new with this version
+# appear below.
+# So:  all sites upgrading should apply these changes.  If your site
+# won't be using metamoderation, set the 'm2' var to '0'.
+INSERT INTO vars (name, value, description) VALUES ('m2', '1', 'Allows use of the metamoderation system');
+INSERT INTO site_info (name, value, description) VALUES ('plugin', 'Metamod', 'Metamoderation');
+UPDATE vars SET name='m1' WHERE name='allow_moderation';
+UPDATE vars SET description='Number of comments for meta-moderation - if more than about 15, doublecheck that users_info.m2_mods_saved is large enough' WHERE name='m2_comments';
+ALTER TABLE users_info CHANGE COLUMN mods_saved m2_mods_saved varchar(120) NOT NULL default '', CHANGE COLUMN lastmm lastm2 datetime DEFAULT '1970-01-01 00:00' NOT NULL;
+
+# Updates for plugins/FireHose
+
+# 2006-09-06
+UPDATE vars SET value = 'T_2_5_0_125' WHERE name = 'cvs_tag_currentcode';
+
+
+DROP TABLE IF EXISTS globj_adminnotes;
+CREATE TABLE globj_adminnotes (
+	globjid         int UNSIGNED NOT NULL AUTO_INCREMENT,
+	adminnote       varchar(255) NOT NULL DEFAULT '',
+	PRIMARY KEY (globjid)
+);
+
+# Updates for plugins/FireHose
+# perl -MSlash::Test=virtusername -le '$hr = $slashdb->sqlSelectAllKeyValue("globjid, note", "firehose", "LENGTH(note) > 0"); for my $k (keys %$hr) { $slashdb->setGlobjAdminnote($k, $hr->{$k}) }'
+
+# 2006-09-12
+UPDATE vars SET value = 'T_2_5_0_126' WHERE name = 'cvs_tag_currentcode';
+
+# Updates for plugins/Tags
+
+# 2006-09-19
+UPDATE vars SET value = 'T_2_5_0_127' WHERE name = 'cvs_tag_currentcode';
+
+## Only run these if you already have SearchToo installed before T_2_5_0_128
+DROP TABLE IF EXISTS search_index_dump;
+CREATE TABLE search_index_dump (
+    iid         int UNSIGNED NOT NULL auto_increment,
+    id          int UNSIGNED NOT NULL,
+    type        VARCHAR(32) DEFAULT '' NOT NULL,
+    status      ENUM('new', 'changed', 'deleted') DEFAULT 'new' NOT NULL,
+    PRIMARY KEY (iid)
+);
+INSERT INTO vars (name, value, description) VALUES ('search_too_index_num', '0', 'Current live search directory (0 or 1)');
+
+# Updates for plugins/FireHose
+#ALTER TABLE firehose ADD COLUMN activity FLOAT NOT NULL DEFAULT '0' AFTER popularity;
+#, ADD UNIQUE globjid (globjid);
+
+# Updates for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_prefixlist_minc', '4', 'Minimum value of c (count) for tagnames returned by listTagnamesByPrefix');
+INSERT INTO vars (name, value, description) VALUES ('tags_prefixlist_mins', '3', 'Minimum value of s (clout sum) for tagnames returned by listTagnamesByPrefix');
+INSERT INTO vars (name, value, description) VALUES ('tags_prefixlist_num', '10', 'Number of tagnames returned by listTagnamesByPrefix');
+
+# 2006-09-28
+UPDATE vars SET value = 'T_2_5_0_128' WHERE name = 'cvs_tag_currentcode';
+
+# Updates for plugins/FireHose
+
+# 2006-10-12
+UPDATE vars SET value = 'T_2_5_0_129' WHERE name = 'cvs_tag_currentcode';
+
+## for SearchToo/FireHose, first turn off slashd, then run:
+#   rm -rf /usr/local/slash/site/*/search_index/kinosearch/*
+# then run:
+REPLACE INTO vars (name, value, description) VALUES ('search_too_index_num', '0', 'Current live search directory (0 or 1)');
+
+# 2006-10-17
+UPDATE vars SET value = 'T_2_5_0_130' WHERE name = 'cvs_tag_currentcode';
+
+# for FireHose plugin
+DELETE FROM ajax_ops where op in ('firehose_get_updates_pop','firehose_check_removed','firehose_fetch_new');
+INSERT INTO vars (name, value, description) VALUES ('firehose_color_slices', '30|30|0.2|0.2|0.2|0.2|0.2', 'Number or percent of remaining stories at each color level separated by | 30|0.5|0.5 would mean 30 stories at the level of highest popularity and 50% at each of remainining stories at the next 2 levels');
+INSERT INTO vars (name, value, description) VALUES ('firehose_slice_points', '20|15|12|7|5|3|1', 'Minimum popularity value to reach a particular color level');
+
+# for Tags Plugin
+INSERT INTO vars (name, value, description) VALUES ('tags_admin_private_tags', '', 'List of tags separated by | that are private for admins');
+
+# for FireHose plugin
+
+# FYI:  Since you're upgrading from a previous version of Slash, you
+# already have the Moderation plugin's SQL changes applied.  This adds the
+# row to your site_info table that offically means Moderation is installed,
+# but actually doing the install would be redundant.
+#
+# So:  all sites upgrading should apply these changes.  If your site
+# won't be using moderation, set the 'm1' var to '0'.
+UPDATE vars SET name='m1', description='Allows use of the moderation system' WHERE name='allow_moderation';
+INSERT IGNORE INTO vars (name, value, description) VALUES ('m1', '1', 'Allows use of the moderation system');
+INSERT INTO site_info (name, value, description) VALUES ('plugin', 'Moderation', 'Moderation (Classic)');
+INSERT INTO vars (name, value, description) VALUES ('m1_pluginname', 'Moderation', 'Which moderation plugin to use');
+
+# for Ajax plugin
+INSERT IGNORE INTO ajax_ops VALUES (NULL, 'comments_moderate_cid', 'Slash::Moderation', 'ajaxModerateCid', 'comments-moderation-ajax', 'use');
+
+# 2006-10-25
+UPDATE vars SET value = 'T_2_5_0_131' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO globj_types VALUES (NULL, 'comments');
+
+# for FireHose plugin
+
+# for static Ajax reskeys
+
+
+# 2006-11-02
+UPDATE vars SET value = 'T_2_5_0_132' WHERE name = 'cvs_tag_currentcode';
+
+# For FireHose plugin
+
+INSERT INTO vars (name, value, description) VALUES ('tags_prefixlist_priority', 'back bookmark feed hold journal none quik submission story', 'Tagnames to give priority to on autocomplete');
+INSERT INTO vars (name, value, description) VALUES ('tags_prefixlist_priority_score', '999', 'Fake score to give any tagnames from tags_autocomplete_priority which may match a prefix');
+
+# 2006-11-08
+UPDATE vars SET value = 'T_2_5_0_133' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE comments MODIFY COLUMN pid int unsigned not null default '0';
+
+# for HumanConf plugin
+ALTER TABLE humanconf MODIFY COLUMN hcid int unsigned not null auto_increment, MODIFY COLUMN hcpid int unsigned not null;
+ALTER TABLE humanconf_pool MODIFY COLUMN hcpid int unsigned not null auto_increment;
+UPDATE humanconf LEFT JOIN humanconf_pool USING (hcpid) SET tries_left = 9999 WHERE humanconf_pool.hcpid IS NULL;
+DELETE FROM humanconf WHERE tries_left = 9999;
+
+UPDATE formkeys SET idcount=0 WHERE idcount > 10000000;
+
+# for Zoo plugin
+ALTER TABLE people MODIFY COLUMN id int unsigned not null auto_increment;
+
+INSERT INTO globj_types VALUES (NULL, 'discussions');
+
+# 2006-11-15
+UPDATE vars SET value = 'T_2_5_0_134' WHERE name = 'cvs_tag_currentcode';
+
+# for FireHose plugin
+UPDATE ajax_ops SET reskey_name="ajax_user_static", reskey_type="use" WHERE op="firehose_up_down";
+UPDATE ajax_ops SET reskey_name="ajax_admin_static", reskey_type="use" WHERE op="firehose_reject";
+INSERT INTO vars (name, value, description) VALUES ('firehose_color_labels', 'red|orange|yellow|green|blue|purple|violet', 'Firehose color labels');
+
+# for Console plugin
+INSERT INTO css (rel, type, media, file, title, skin, page, admin, theme, ctid, ordernum, ie_cond) VALUES ('stylesheet','text/css','screen, projection','firehose.css','','','console','no','',2,0, '');
+
+# for Tags plugin
+INSERT INTO vars (name, value, description) VALUES ('memcached_exptime_tags_brief', '300', 'Seconds to cache tag data that only needs brief caching, in memcached');
+INSERT INTO vars (name, value, description) VALUES ('tags_list_mintc', '4', 'Minimum value of total_clout for tagged items shown at /tags/foo');
+
+UPDATE vars SET value=CONCAT(value,'|quote') WHERE name='approvedtags';
+
+# For FireHose plugin
+
+# 2006-11-21
+UPDATE vars SET value = 'T_2_5_0_135' WHERE name = 'cvs_tag_currentcode';
+
+# For FireHose plugin
+UPDATE vars SET VALUE='red|orange|yellow|green|blue|indigo|violet' WHERE name='firehose_color_labels';
+
+INSERT INTO vars (name, value, description) VALUES ('db_auto_increment_increment','1','If your master DB uses auto_increment_increment, i.e. multiple master replication, echo its value into this var');
+
+# 2006-11-29
+UPDATE vars SET value = 'T_2_5_0_136' WHERE name = 'cvs_tag_currentcode';
+
+# For FireHose Plugin
+UPDATE vars SET value='red|orange|yellow|green|blue|indigo|violet' where name='firehose_color_labels';
+
+
+# for DST change in 2007
+REPLACE INTO dst (region, selectable, start_hour, start_wnum, start_wday, start_month, end_hour, end_wnum, end_wday, end_month) VALUES ('America',     1, 2,  2, 0, 2, 2,  1, 0, 10);
+
+ALTER TABLE sessions ADD last_fhid mediumint UNSIGNED;
+
+CREATE TABLE comment_log (
+	id int UNSIGNED NOT NULL auto_increment,
+	cid int UNSIGNED NOT NULL,
+	logtext varchar(255) DEFAULT '' NOT NULL,
+	ts datetime DEFAULT '1970-01-01 00:00:00' NOT NULL,
+	INDEX ts (ts),
+	PRIMARY KEY (id)
+);
+
+# 2006-12-05
+UPDATE vars SET value = 'T_2_5_0_137' WHERE name = 'cvs_tag_currentcode';
+
+# For Journal PLUGIN
+ALTER TABLE journals ADD promotetype ENUM ("publicize", "publish", "post") NOT NULL DEFAULT "publish";
+UPDATE journals SET promotetype="post" WHERE submit="no";
+UPDATE journals SET promotetype="publish" WHERE submit="yes";
+ALTER TABLE journals DROP COLUMN submit; 
+INSERT INTO vars (name, value, description) VALUES ('journal_create_submission','0','Do you want setting the publicize flag to create a submission in addition to a journal?');
+
+INSERT INTO vars (name, value, description) VALUES ('nick_regex', '^[a-zA-Z_][ a-zA-Z0-9$_.+!*\'(),-]{0,19}$', 'Regex (case-sensitive) allowed for user nicknames');
+
+# 2006-12-13
+UPDATE vars SET value = 'T_2_5_0_138' WHERE name = 'cvs_tag_currentcode';
+
+#For plugins FireHose
+
+
+# 2006-12-21
+UPDATE vars SET value = 'T_2_5_0_139' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-01-04
+UPDATE vars SET value = 'T_2_5_0_140' WHERE name = 'cvs_tag_currentcode';
+
+# Updates for plugins/FireHose
+UPDATE vars SET value=CONCAT(value, "|-99999") WHERE name="firehose_slice_points";
+UPDATE vars SET value=CONCAT(value, "|black") WHERE name="firehose_color_labels";
+
+# clear user pref
+DELETE FROM users_param WHERE name = 'comments_control';
+
+# Updates for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_admin_autoaddstorytopics', '1', 'Auto-add tags for story topic keywords?');
+
+# 2007-01-11
+UPDATE vars SET value = 'T_2_5_0_141' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-01-18
+UPDATE vars SET value = 'T_2_5_0_142' WHERE name = 'cvs_tag_currentcode';
+
+# new table and values for plugins/Messages
+DROP TABLE IF EXISTS message_deliverymodes;
+CREATE TABLE message_deliverymodes (
+        code     SMALLINT default '0' NOT NULL,
+        name     VARCHAR(32) default '' NOT NULL,
+        bitvalue MEDIUMINT unsigned default '0' NOT NULL,
+        PRIMARY KEY (code)
+);
+
+INSERT INTO message_deliverymodes VALUES (-1, 'No Messages', 0);
+INSERT INTO message_deliverymodes VALUES (0, 'E-mail', 1);
+INSERT INTO message_deliverymodes VALUES (1, 'Web', 2);
+
+# Updates for plugins/Messages
+ALTER TABLE message_codes ADD COLUMN delivery_bvalue INT UNSIGNED DEFAULT '0' NOT NULL;
+UPDATE message_codes SET delivery_bvalue = 0 WHERE code = -2;
+UPDATE message_codes SET delivery_bvalue = 0 WHERE code = -1;
+UPDATE message_codes SET delivery_bvalue = 1 WHERE code = 0;
+UPDATE message_codes SET delivery_bvalue = 1 WHERE code = 1;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 2;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 3;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 4;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 5;
+UPDATE message_codes SET delivery_bvalue = 1 WHERE code = 6;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 7;
+UPDATE message_codes SET delivery_bvalue = 0 WHERE code = 8;
+UPDATE message_codes SET delivery_bvalue = 1 WHERE code = 10;
+UPDATE message_codes SET delivery_bvalue = 1 WHERE code = 11;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 12;
+UPDATE message_codes SET delivery_bvalue = 2 WHERE code = 13;
+UPDATE message_codes SET delivery_bvalue = 1 WHERE code = 14;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 15;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 16;
+UPDATE message_codes SET delivery_bvalue = 3 WHERE code = 18;
+
+# Updates for plugins/FireHose
+
+DROP TABLE IF EXISTS firehose_tab;
+CREATE TABLE firehose_tab(
+	tabid mediumint(8) unsigned NOT NULL auto_increment,
+	uid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+	tabname VARCHAR(16) NOT NULL DEFAULT 'unnamed',
+	filter VARCHAR(255) NOT NULL DEFAULT '',
+	orderby ENUM("popularity","createtime", "editorpop", "activity") DEFAULT "createtime",
+	orderdir ENUM("ASC", "DESC") DEFAULT "DESC",
+	color VARCHAR(16) NOT NULL DEFAULT '',
+	mode ENUM("full", "fulltitle") DEFAULT "fulltitle",
+	PRIMARY KEY  (tabid),
+	UNIQUE KEY uid_tabname (uid,tabname)
+);
+
+INSERT INTO firehose_tab VALUES (NULL,0,'FireHose','','createtime','DESC','indigo','fulltitle');
+INSERT INTO firehose_tab VALUES (NULL,0,'Slashdot','story','createtime','DESC','black','full');
+INSERT INTO firehose_tab VALUES (NULL,0,'Journals','journal','createtime','DESC','blue','full');
+
+# 2007-01-24
+UPDATE vars SET value = 'T_2_5_0_143' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('admin_warn_primaryskid', '', 'Warn admin if a story is saved with the following primaryskids (skids delimited by |)');
+
+# 2007-01-30
+UPDATE vars SET value = 'T_2_5_0_144' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-02-01
+UPDATE vars SET value = 'T_2_5_0_145' WHERE name = 'cvs_tag_currentcode';
+
+CREATE TABLE tags_peerweight (
+	uid		mediumint UNSIGNED NOT NULL DEFAULT '0',
+	gen		smallint UNSIGNED NOT NULL DEFAULT '0',
+	weight		float NOT NULL DEFAULT '0',
+	PRIMARY KEY (uid),
+	KEY gen_uid (gen, uid)
+);
+
+# 2007-02-06
+UPDATE vars SET value = 'T_2_5_0_146' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-02-14
+UPDATE vars SET value = 'T_2_5_0_147' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+INSERT INTO firehose_tab VALUES (NULL,0,'User','"user:{nickname}"','createtime','DESC','black','full');
+CREATE TABLE firehose_ogaspt (
+	globjid		int(10) unsigned NOT NULL default '0',
+	pubtime		datetime NOT NULL default '0000-00-00 00:00:00',
+	PRIMARY KEY	(globjid)
+);
+
+# For plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_usecloutfield', '', 'Use a users_param field for clout? Leave empty to use users_info.tag_clout times some simple multipliers');
+INSERT INTO vars (name, value, description) VALUES ('tags_usecloutfield_mult', '1.0', 'Multiply the users_param field by this');
+CREATE TABLE tagnames_similar (
+	tsid            int UNSIGNED NOT NULL AUTO_INCREMENT,
+	type            smallint UNSIGNED NOT NULL DEFAULT '0',
+	src_tnid        int UNSIGNED NOT NULL DEFAULT '0',
+	dest_tnid       int UNSIGNED NOT NULL DEFAULT '0',
+	simil           float NOT NULL DEFAULT '0',
+	PRIMARY KEY (tsid),
+	UNIQUE type_src_dest (type, src_tnid, dest_tnid)
+);
+INSERT INTO vars (name, value, description) VALUES ('tags_usecloutfield_default', '', 'If empty string, then users with no tags_usecloutfield param use the old formula based on karma. If number, then those users use this number. If tags_usecloutfield not defined, leave this the empty string.');
+
+
+# For plugins/FireHose and plugins/SearchToo
+INSERT INTO vars (name, value, description) VALUES ('firehose_searchtoo', '0', 'Use SearchToo for FireHose searching');
+############################################################################
+#### DO NOT DO THIS UNTIL AFTER SLASHD HAS BEEN RESTARTED WITH NEW CODE ####
+############################################################################
+# better to DELETE existing search index first, before doing this:
+#   rm -rf search_index/kinosearch/firehose_*
+
+# 2007-02-21
+UPDATE vars SET value = 'T_2_5_0_148' WHERE name = 'cvs_tag_currentcode';
+
+UPDATE firehose_tab SET tabname = 'Firehose' WHERE tabname = 'FireHose';
+
+# 2007-03-01
+UPDATE vars SET value = 'T_2_5_0_149' WHERE name = 'cvs_tag_currentcode';
+
+# If you have a large and busy site, you may wish to stop slashd and
+# webheads.  This transaction may take a minute or so and will block a
+# variety of user actions.
+START TRANSACTION;
+CREATE TABLE users_param2 LIKE users_param;
+ALTER TABLE users_param2 CHANGE param_id param_id INT UNSIGNED NOT NULL AUTO_INCREMENT;
+INSERT INTO users_param2 SELECT NULL, uid, name, value FROM users_param;
+RENAME TABLE users_param TO users_param3;
+RENAME TABLE users_param2 TO users_param;
+COMMIT;
+DROP TABLE IF EXISTS users_param3;
+
+# If you have a large and busy site, you may wish to stop slashd and
+# webheads.  This transaction may take a minute or so and will block a
+# variety of user actions.
+ALTER TABLE comments ADD COLUMN badge_id tinyint UNSIGNED DEFAULT '0' NOT NULL;
+
+# For badges
+CREATE TABLE badge_ids (
+        badge_id        tinyint UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        badge_text      varchar(32) NOT NULL DEFAULT '',
+        badge_url       varchar(255) NOT NULL DEFAULT '',
+        badge_icon      varchar(32) NOT NULL DEFAULT ''
+);
+
+INSERT INTO badge_ids (badge_id, badge_text, badge_url, badge_icon) values (1, 'Slashdot', '//slashdot.org/', 'badge_slashdot.png');
+INSERT INTO badge_ids (badge_id, badge_text, badge_url, badge_icon) values (2, 'OSTG', 'http://www.ostg.com/', 'badge_ostg.png');
+INSERT INTO badge_ids (badge_id, badge_text, badge_url, badge_icon) values (3, 'Intel', '//intel.vendors.slashdot.org/', 'badge_intel.png');
+
+# 2007-03-13
+UPDATE vars SET value = 'T_2_5_0_150' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO css (rel, type, media, file, title, skin, page, admin, theme, ctid, ordernum, ie_cond) VALUES ('stylesheet','text/css','screen, projection','calendar.css','','','firehose','no','',2,0, '');
+INSERT INTO css (rel, type, media, file, title, skin, page, admin, theme, ctid, ordernum, ie_cond) VALUES ('stylesheet','text/css','screen, projection','calendar.css','','','console','no','',2,0, '');
+
+# New Messages delivery method
+INSERT INTO message_deliverymodes VALUES (2, 'IM', 4);
+
+# New Messages preference (initially set to inactive)
+INSERT INTO message_codes VALUES (19, 'System Messages', 100, 0, 0, 'now', '', 0);
+
+# 2007-03-21
+UPDATE vars SET value = 'T_2_5_0_151' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ("comment_is_troll_disable_and_log", "0", "Disable and log isTroll check for comments");
+
+# 2007-03-28
+UPDATE vars SET value = 'T_2_5_0_152' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+
+# 2007-04-05
+UPDATE vars SET value = 'T_2_5_0_153' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+INSERT INTO vars (name, value, description) VALUES ('firehose_anonval_param', '', 'String needed to be passed in anonval form param to validate requests, set to a string to enforce this validation');
+
+
+# Need a CPAN install of Net::OSCAR
+
+# For plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_udc_daysback', '182', 'Days back to crunch numbers for tags_udc related tables, should be a multiple of 7');
+CREATE TABLE tags_udc (
+	hourtime        datetime NOT NULL,
+	udc             float NOT NULL DEFAULT '0',
+	PRIMARY KEY (hourtime)
+);
+CREATE TABLE tags_hourofday (
+	hour            tinyint UNSIGNED NOT NULL DEFAULT '0',
+	proportion      float NOT NULL DEFAULT '0',
+	PRIMARY KEY (hour)
+);
+CREATE TABLE tags_dayofweek (
+	day             tinyint UNSIGNED NOT NULL DEFAULT '0',
+        proportion      float NOT NULL DEFAULT '0',
+	PRIMARY KEY (day)
+);
+
+# For plugins/FireHose
+
+# 2007-04-12
+UPDATE vars SET value = 'T_2_5_0_154' WHERE name = 'cvs_tag_currentcode';
+
+# For the IM bot. These values should be manually set.
+INSERT INTO vars (name, value, description) VALUES ('im_screenname', '', 'IM message bot screen name');
+INSERT INTO vars (name, value, description) VALUES ('im_password', '', 'IM message bot password, in clear text. This is encrypted upon connecting.');
+
+#For plugins/FireHose
+UPDATE ajax_ops SET reskey_name="ajax_user_static" WHERE op="firehose_fetch_text";
+
+# 2007-04-18
+UPDATE vars SET value = 'T_2_5_0_155' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+INSERT INTO vars (name, value, description) VALUES ('firehose_userpop_col', 'popularity', 'Column name in firehose table storing popularity as seen by users');
+REPLACE INTO vars (name, value, description) VALUES ('firehose_slice_points', '290,240 220,200 185,175 155,138 102,93 30,25 0,-999999', 'Seven pairs of numbers: the entry score and minimum score for each color slice (last min should be large negative)');
+
+# Update for tagboxes/FHPopularity and/or tagboxes/FHPopularity2
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fhpopularity_maxudcmult', '5', 'Maximum multiplier for an up/down tag based on the tags_udc table');
+
+# 2007-04-26
+UPDATE vars SET value = 'T_2_5_0_156' WHERE name = 'cvs_tag_currentcode';
+
+# Turn on System Message IM option
+UPDATE message_codes SET delivery_bvalue = 4 WHERE type = 'System Messages';
+
+# 2007-05-02
+UPDATE vars SET value = 'T_2_5_0_157' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-05-09
+UPDATE vars SET value = 'T_2_5_0_158' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-05-17
+UPDATE vars SET value = 'T_2_5_0_159' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-05-23
+UPDATE vars SET value = 'T_2_5_0_160' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-05-30
+UPDATE vars SET value = 'T_2_5_0_161' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-05-30
+UPDATE vars SET value = 'T_2_5_0_161' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/ResKey 
+
+# For plugins/Messages (this will turn on the IM option for Comment Replies)
+UPDATE message_codes SET delivery_bvalue = 7 WHERE code = 4;
+
+# for Tags and FireHose
+INSERT INTO vars (name, value, description) VALUES ('tags_negative_tagnames', 'nix,dupe,whocares', 'Negative tags (comma separated)');
+
+# 2007-06-05
+UPDATE vars SET value = 'T_2_5_0_162' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO string_param (type, code, name) VALUES ('commentcodes_extended','logged_in','Only Logged-In Users');
+ALTER TABLE discussions MODIFY COLUMN commentstatus enum('disabled','enabled','friends_only','friends_fof_only','no_foe','no_foe_eof','logged_in') DEFAULT 'enabled' NOT NULL;
+
+# These will turn on the IM option for Journal Entry By Friend and Journal Reply
+UPDATE message_codes SET delivery_bvalue = 7 WHERE code = 5;
+UPDATE message_codes SET delivery_bvalue = 7 WHERE code = 7;
+
+INSERT INTO css (rel, type, media, file, title, skin, page, admin, theme, ctid, ordernum, ie_cond) VALUES ('stylesheet','text/css','screen, projection','firehose.css','','','users','no','',2,0, '');
+
+# For plugins/FireHose
+INSERT INTO vars (name, value, description) VALUES ('firehose_admindownclout', '0.5', 'Admin clout for downvotes can be reduced by specifying a number between 0 and 1');
+
+# 2007-06-13
+UPDATE vars SET value = 'T_2_5_0_163' WHERE name = 'cvs_tag_currentcode';
+
+# Turn on New Story Posted message option (for admin testing).
+INSERT INTO message_codes VALUES (20, 'New Story Posted', 100, 0, 0, 'now', '', 4);
+
+# For plugins/Bookmark
+ALTER TABLE bookmark_feeds ADD feedname VARCHAR(32) AFTER feed;
+
+# For plugins/FireHose
+INSERT INTO css (rel, type, media, file, title, skin, page, admin, theme, ctid, ordernum, ie_cond) VALUES ('stylesheet','text/css','screen, projection','comments.css','','','firehose','no','',2,0, '');
+
+INSERT INTO vars (name, value, description) VALUES ('firehose_adminudcclout', '0.5', 'Admin clout for udc purposes (number between 0 and 1, probably');
+
+# 2007-06-19
+UPDATE vars SET value = 'T_2_5_0_164' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE related_stories ADD COLUMN fhid mediumint(8) unsigned NOT NULL default '0';
+
+# For plugins/Messages
+UPDATE message_codes SET seclev = 1 WHERE code = 20;
+
+# For tagboxes/FHEditorPop and tagboxes/FHPopularity2
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fheditorpop_udcbasis', '1000', 'Basis for tags_udc vote clout weighting');
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fhpopularity2_udcbasis', '1000', 'Basis for tags_udc vote clout weighting');
+UPDATE vars SET name='tagbox_fhpopularity2_maxudcmult' WHERE name='tagbox_fhpopularity_maxudcmult';
+
+# 2007-06-26
+UPDATE vars SET value = 'T_2_5_0_165' WHERE name = 'cvs_tag_currentcode';
+
+DELETE FROM reskey_vars WHERE rkrid = 100 AND name = 'duration_uses';
+
+CREATE TABLE tags_searched (
+	tseid           int UNSIGNED NOT NULL AUTO_INCREMENT,
+	tagnameid       int UNSIGNED NOT NULL,
+	searched_at     datetime NOT NULL,
+	uid             mediumint UNSIGNED DEFAULT NULL,
+	PRIMARY KEY (tseid),
+	KEY (tagnameid),
+	KEY (searched_at)
+);
+
+# For plugins/Firehose
+INSERT INTO vars (name, value, description) VALUES ('yoogli_oai_search', '', 'Use Yoogli OAI search');
+INSERT INTO vars (name, value, description) VALUES ('yoogli_oai_query_base', '', 'URL of the Yoogli OAI gateway');
+INSERT INTO vars (name, value, description) VALUES ('yoogli_oai_result_count', '', 'Number of requested OAI results');
+INSERT INTO vars (name, value, description) VALUES ('smalldevices_ua_regex', 'iPhone', 'regex of user agents for small devices');
+
+# 2007-07-11
+UPDATE vars SET value = 'T_2_5_0_166' WHERE name = 'cvs_tag_currentcode';
+
+# For tagboxes/FHPopularity2
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fhpopularity2_gracetime', '1200', 'Number of initial seconds of a firehose item life let it float higher in the hose');
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fhpopularity2_gracemult', '3', 'Multiplier factor for a firehose item during the grace period');
+
+# 2007-07-17
+UPDATE vars SET value = 'T_2_5_0_167' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('tags_viewed_tagname', 'viewed', 'Tagname to assign to stories and other items a user has viewed');
+
+INSERT INTO vars (name, value, description) VALUES ('login_nontemp_days', '365', 'Days before a nontemp login expires');
+
+# For plugins/FireHose
+INSERT INTO vars (name, value, description) VALUES ('firehose_add_related', '0', 'Automatically add link to firehose discussion as related to linked story');
+
+INSERT INTO discussion_kinds (dkid, name) VALUES (6, 'submission');
+INSERT INTO discussion_kinds (dkid, name) VALUES (7, 'feed');
+
+# For plugins/Messages
+UPDATE message_deliverymodes SET name = 'AIM' WHERE code = 2;
+INSERT INTO message_deliverymodes (code, name, bitvalue) VALUES (3, 'Mobile', 8);
+UPDATE message_codes SET delivery_bvalue = 12 WHERE type = 'New Story Posted';
+
+# For tagboxes/FHPopularity2
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fhpopularity2_gracevotes', '4', 'Max number of votes for which the grace period will apply');
+
+# For plugins/Tags
+CREATE TABLE globjs_viewed (
+    gvid        int UNSIGNED NOT NULL AUTO_INCREMENT,
+    globjid     int UNSIGNED NOT NULL,
+    uid         mediumint UNSIGNED NOT NULL,
+    viewed_at   datetime NOT NULL,
+    PRIMARY KEY (gvid),
+    UNIQUE globjid_uid (globjid, uid)
+);
+
+# For plugins/FireHose
+
+# 2007-07-31
+UPDATE vars SET value = 'T_2_5_0_168' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/Messages
+UPDATE message_codes SET delivery_bvalue = 15 WHERE type = 'Comment Reply';
+
+# 2007-08-08
+UPDATE vars SET value = 'T_2_5_0_169' WHERE name = 'cvs_tag_currentcode';
+
+UPDATE vars SET value = 'T_2_5_0_170' WHERE name = 'cvs_tag_currentcode';
+
+
+INSERT INTO vars (name, value, description) VALUES ('mainpage_displayable_nexuses', '', 'List of nexuses that can appear on the mainpage depending on settings; if empty, getStorypickableNexusChildren is used instead');
+
+# 2007-08-22
+UPDATE vars SET value = 'T_2_5_0_171' WHERE name = 'cvs_tag_currentcode';
+
+# reskey updates
+
+# 2007-08-28
+UPDATE vars SET value = 'T_2_5_0_172' WHERE name = 'cvs_tag_currentcode';
+
+
+INSERT INTO string_param (type, code, name) VALUES ('us_states','AL','Alabama');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','AK','Alaska');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','AS','American Samoa');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','AZ','Arizona');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','AR','Arkansas');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','CA','California');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','CO','Colorado');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','CT','Connecticut');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','DE','Delaware');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','DC','District of Columbia');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','FM','Federated States of Micronesia');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','FL','Florida');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','GA','Georgia');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','GU','Guam');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','HI','Hawaii');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','ID','Idaho');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','IL','Illinois');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','IN','Indiana');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','IA','Iowa');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','KS','Kansas');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','KY','Kentucky');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','LA','Louisiana');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','ME','Maine');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MH','Marshall Islands');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MD','Maryland');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MA','Massachusetts');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MI','Michigan');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MN','Minnesota');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MS','Mississippi');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MO','Missouri');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MT','Montana');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','NE','Nebraska');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','NV','Nevada');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','NH','New Hampshire');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','NJ','New Jersey');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','NM','New Mexico');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','NY','New York');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','NC','North Carolina');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','ND','North Dakota');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','MP','Northern Mariana Islands');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','OH','Ohio');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','OK','Oklahoma');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','OR','Oregon');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','PW','Palau');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','PA','Pennsylvania');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','PR','Puerto Rico');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','RI','Rhode Island');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','SC','South Carolina');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','SD','South Dakota');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','TN','Tennessee');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','TX','Texas');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','UT','Utah');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','VT','Vermont');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','VI','Virgin Islands');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','VA','Virginia');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','WA','Washington');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','WV','West Virginia');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','WI','Wisconsin');
+INSERT INTO string_param (type, code, name) VALUES ('us_states','WY','Wyoming');
+
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','AB','Alberta');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','BC','British Columbia');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','MB','Manitoba');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','NB','New Brunswick');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','NL','Newfoundland and Labrador');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','NT','Northwest Territories');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','NS','Nova Scotia');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','NU','Nunavut');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','ON','Ontario');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','PE','Prince Edward Island');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','QC','Quebec');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','SK','Saskatchewan');
+INSERT INTO string_param (type, code, name) VALUES ('ca_provinces','YT','Yukon');
+
+# 2007-09-05
+UPDATE vars SET value = 'T_2_5_0_173' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-09-13
+UPDATE vars SET value = 'T_2_5_0_174' WHERE name = 'cvs_tag_currentcode';
+
+
+# 2007-09-17
+UPDATE vars SET value = 'T_2_5_0_175' WHERE name = 'cvs_tag_currentcode';
+
+# If this emits an error that the key does not exist, that's OK.
+# (It will not harm anything to run.)
+ALTER TABLE users_param DROP INDEX uid;
+# Check your table definition;  if its param_id is already int, this
+# ALTER is unnecessary (but will not harm anything except taking time).
+ALTER TABLE users_param MODIFY param_id int UNSIGNED NOT NULL AUTO_INCREMENT;
+
+CREATE TABLE users_clout (
+        clout_id        int UNSIGNED NOT NULL AUTO_INCREMENT,
+        uid             mediumint UNSIGNED NOT NULL,
+        clid            smallint UNSIGNED NOT NULL,
+        clout           float UNSIGNED DEFAULT NULL,
+        PRIMARY KEY (clout_id),
+        UNIQUE uid_clid (uid, clid),
+        INDEX clid (clid)
+);
+CREATE TABLE clout_types (
+        clid            smallint UNSIGNED NOT NULL AUTO_INCREMENT,
+        name            varchar(16) NOT NULL,
+        class           varchar(255) NOT NULL,
+        PRIMARY KEY (clid),
+        UNIQUE name (name)
+);
+
+# For plugins/Tags
+DELETE FROM vars WHERE name IN ('tags_usecloutfield', 'tags_usecloutfield_default', 'tags_usecloutfield_mult');
+UPDATE vars SET description='Multiply the users_clout field by this' where name='tags_usecloutfield_mult';
+ALTER TABLE tagboxes ADD COLUMN clid smallint UNSIGNED NOT NULL AFTER affected_type;
+UPDATE tagboxes SET clid=1 WHERE name IN ('TagCountUser', 'Top');
+UPDATE tagboxes SET clid=2 WHERE name IN ('FHActivity', 'FHEditorPop', 'FHPopularity', 'FHPopularity2', 'FireHoseScores', 'FirstMover');
+UPDATE tagboxes SET clid=3 WHERE name IN ('CommentScoreReason');
+DROP TABLE IF EXISTS tags_peerweight;
+CREATE TABLE tags_peerclout (
+        tpcid           int UNSIGNED NOT NULL AUTO_INCREMENT,
+        uid             mediumint UNSIGNED NOT NULL DEFAULT '0',
+        clid            smallint UNSIGNED NOT NULL,
+        gen             smallint UNSIGNED NOT NULL DEFAULT '0',
+        clout           float UNSIGNED NOT NULL DEFAULT '0',
+        PRIMARY KEY (tpcid),
+        UNIQUE uid_clid (uid, clid),
+        KEY clid_gen_uid (clid, gen, uid)
+);
+
+# For plugins/FireHose
+INSERT IGNORE INTO vars (name,value,description) SELECT CONCAT('tagbox_firehosescores_', SUBSTRING(name, 22)), value, description FROM vars WHERE name like 'tagbox_fhpopularity2_%';
+DELETE FROM vars WHERE name='firehose_userpop_col';
+
+# For plugins/Tags
+INSERT INTO users_clout (clout_id, uid, clid, clout) SELECT NULL, uid, 1, value+0 FROM users_param WHERE name='tagpeerval';
+INSERT INTO users_clout (clout_id, uid, clid, clout) SELECT NULL, uid, 2, value+0 FROM users_param WHERE name='tagpeerval2';
+DELETE FROM users_param WHERE name IN ('tagpeerval', 'tagpeerval2');
+
+INSERT INTO clout_types (clid, name, class) VALUES (1, 'describe', 'Slash::Clout::Describe');
+INSERT INTO clout_types (clid, name, class) VALUES (2, 'vote',     'Slash::Clout::Vote');
+INSERT INTO clout_types (clid, name, class) VALUES (3, 'moderate', 'Slash::Clout::Moderate');
+
+# 2007-09-26
+UPDATE vars SET value = 'T_2_5_0_176' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/Tags
+UPDATE tagboxes SET clid=2 WHERE name='FirstMover';
+
+# 2007-10-04
+UPDATE vars SET value = 'T_2_5_0_177' WHERE name = 'cvs_tag_currentcode';
+
+# 2007-10-05
+UPDATE vars SET value = 'T_2_5_0_178' WHERE name = 'cvs_tag_currentcode';
+
+# For modal preferences
+INSERT INTO vars (name, value, description) VALUES ('modal_prefs_active', 1, 'Toggles modal preferences on/off');
+
+# For plugins/HumanConf
+
+ALTER TABLE dateformats MODIFY format VARCHAR(64) DEFAULT NULL;
+UPDATE dateformats SET format='%A %B %d, @%I:%M%p IF_OLD %A %B %d %Y, @%I:%M%p' where format='%A %B %d, @%I:%M%p';
+
+# 2007-10-11
+UPDATE vars SET value = 'T_2_5_0_179' WHERE name = 'cvs_tag_currentcode';
+
+
+# default prefs for new /. accounts
+INSERT INTO string_param (type, code, name) VALUES ('otherusersparam','discussion2','slashdot');
+INSERT INTO string_param (type, code, name) VALUES ('otherusersparam','d2_comment_q','5'); # medium
+INSERT INTO string_param (type, code, name) VALUES ('otherusersparam','d2_comment_order','0'); # score
+
+# For plugins/HumanConf
+ALTER TABLE humanconf_pool MODIFY html TEXT NOT NULL;
+
+# For tagboxes/FireHoseScores
+INSERT INTO tagbox_userkeyregexes VALUES ('FireHoseScores', '^tag_clout$');
+
+# For tagboxes/Top
+INSERT INTO tagbox_userkeyregexes VALUES ('Top', '^tag_clout$');
+
+CREATE TABLE file_queue (
+        fqid int(10) unsigned NOT NULL auto_increment,
+        stoid mediumint(8) unsigned default NULL,
+        fhid mediumint(8) unsigned default NULL,
+        file varchar(255) default NULL,
+        action enum('upload','thumbnails') default NULL,
+        PRIMARY KEY (fqid)
+);
+
+CREATE TABLE story_static_files (
+        sfid mediumint unsigned NOT NULL auto_increment,
+        stoid mediumint unsigned NOT NULL,
+        filetype ENUM("file", "image", "audio") not null default "file",
+        name varchar(255) default '' NOT NULL,
+        PRIMARY KEY (sfid),
+        INDEX stoid(stoid)
+);
+
+# 2007-10-16
+UPDATE vars SET value = 'T_2_5_0_180' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO string_param (type, code, name) VALUES ('mediatypes','none','None');
+INSERT INTO string_param (type, code, name) VALUES ('mediatypes','video','Video');
+INSERT INTO string_param (type, code, name) VALUES ('mediatypes','image','Image');
+INSERT INTO string_param (type, code, name) VALUES ('mediatypes','audio','Audio');
+INSERT INTO string_param (type, code, name) VALUES ('mediatypes','text','Text');
+
+ALTER TABLE submissions ADD COLUMN mediatype enum("none", "text", "video","image","audio") default "none" NOT NULL;
+
+# For plugins/FireHose
+
+ALTER TABLE file_queue ADD COLUMN blobid VARCHAR(32) DEFAULT "" NOT NULL;
+ALTER TABLE story_static_files ADD COLUMN width smallint unsigned not null default 0;  
+ALTER TABLE story_static_files ADD COLUMN height smallint unsigned not null default 0;
+
+INSERT INTO vars (name, value, description) VALUES ('admin_use_blob_for_upload', '1', 'Use blobs for fileuploading - 1 for yes, 0 for no or file-based uploading');
+
+UPDATE string_param SET name = '9' WHERE type = 'otherusersparam' AND code = 'd2_comment_q'; # large
+
+
+# 2007-10-25
+UPDATE vars SET value = 'T_2_5_0_181' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+# Install CPAN module File::Type for plugins/FireHose 
+
+RENAME TABLES story_static_files to static_files;
+ALTER TABLE static_files ADD COLUMN fhid mediumint unsigned NOT NULL;
+
+# for plugins/Journal
+ALTER TABLE journals ADD COLUMN srcid_32 BIGINT UNSIGNED NOT NULL DEFAULT 0, ADD COLUMN srcid_24 BIGINT UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE journals ADD INDEX srcid_32 (srcid_32), ADD INDEX srcid_24 (srcid_24);
+
+# for plugins/Bookmark
+
+SELECT @maxbitpos := MAX(bitpos) FROM al2_types;
+INSERT INTO al2_types VALUES (NULL, @maxbitpos+1, 'spammer', 'Spammer');
+
+
+# For tagboxes/Top
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_top_excludetagnames', 'yes no binspam dupe notthebest offtopic stupid slownewsday interesting funny insightful', 'Minimum score a tag must have to make it into the top tags for a story or firehose item');
+
+# 2007-11-01
+UPDATE vars SET value = 'T_2_5_0_182' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Falk
+
+# don't remove this if you want it ... but remove it if you don't!
+# 18 = "Invalid HTML Input" (see the Messages dump to add back)
+DELETE FROM message_codes WHERE code = 18;
+
+# Redundant for many sites, but this is here because an earlier error
+# in the upgrades file may have left your site without them if you
+# didn't have the FireHose plugin installed.
+INSERT IGNORE INTO clout_types (clid, name, class) VALUES (1, 'describe', 'Slash::Clout::Describe');
+INSERT IGNORE INTO clout_types (clid, name, class) VALUES (2, 'vote',     'Slash::Clout::Vote');
+INSERT IGNORE INTO clout_types (clid, name, class) VALUES (3, 'moderate', 'Slash::Clout::Moderate');
+
+# For plugins/Tags
+# Also redundant, but if you have Tags and no FireHose you may
+# need this.
+INSERT IGNORE INTO users_clout (clout_id, uid, clid, clout) SELECT NULL, uid, 1, value+0 FROM users_param WHERE name='tagpeerval';
+INSERT IGNORE INTO users_clout (clout_id, uid, clid, clout) SELECT NULL, uid, 2, value+0 FROM users_param WHERE name='tagpeerval2';
+DELETE FROM users_param WHERE name IN ('tagpeerval', 'tagpeerval2');
+
+# for plugins/FireHose
+# This may throw an error but that's OK - just fixing an earlier bug
+# in this upgrades file
+
+# for tagboxes/Despam
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_despam_binspamsallowed_ip', '3', 'Number of binspam tags allowed before action is taken for an IP');
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_despam_decloutdaysback', '7', 'Number of days to look back to declout upvoters');
+
+# 2007-11-08
+UPDATE vars SET value = 'T_2_5_0_183' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO blocks (bid, block, seclev, type, description, skin, ordernum, title, portal, url, rdf, retrieve) VALUES ('spamurlregexes','',100,'static','Whitespace-delimited list of regexes which indicate a spammer URL.','mainpage',5,'Spam URL Regexes',0,NULL,NULL,0);
+INSERT IGNORE INTO vars (name, value, description) VALUES ('al2_type_aliases', 'spammer->nosubmit spammer->nopost nopost->nopostanon', 'List of AL2s that imply other AL2s, in a whitespace-delimited list of A->B format');
+
+UPDATE code_param SET name = 'Few' WHERE type = 'd2_comment_q' AND name = 'Tiny';
+UPDATE code_param SET name = 'More' WHERE type = 'd2_comment_q' AND name = 'Medium';
+UPDATE code_param SET name = 'Many' WHERE type = 'd2_comment_q' AND name = 'Large';
+UPDATE code_param SET name = 'Oldest' WHERE type = 'd2_comment_order' AND name = 'Date';
+UPDATE code_param SET name = 'Highest Rated' WHERE type = 'd2_comment_order' AND name = 'Score';
+
+UPDATE al2_types SET name='spammer',title='Spammer' WHERE name='binspam';
+
+# 2007-11-14
+UPDATE vars SET value = 'T_2_5_0_184' WHERE name = 'cvs_tag_currentcode';
+
+# not for slashdot
+UPDATE vars SET value = 'yes no binspam dupe notthebest offtopic stupid slownewsday interesting funny insightful' WHERE name = 'tagbox_top_excludetagnames';
+
+# 2007-12-05
+UPDATE vars SET value = 'T_2_5_0_185' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+
+# for plugins/FireHose
+INSERT IGNORE INTO ajax_ops VALUES (NULL, 'firehose_usage', 'Slash::FireHose', 'ajaxFireHoseUsage', 'ajax_admin', 'createuse');
+
+# 2007-12-05
+UPDATE vars SET value = 'T_2_5_0_186' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+UPDATE tagcommand_adminlog SET cmdtype='*' WHERE cmdtype='+';
+INSERT INTO vars (name, value, description) VALUES ('tags_rectn_mincare', '5', 'Minimum color slice number to "care" about tags for Recent Tagnames (only matters if FireHose installed)');
+INSERT INTO vars (name, value, description) VALUES ('tags_rectn_nocaremult', '0', 'If tags_rectn_mincare excludes an item, how less do we still care? 1=no change, 0=not at all');
+
+# for plugins/FireHose
+
+# 2007-12-13
+UPDATE vars SET value = 'T_2_5_0_187' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Metamod
+INSERT INTO vars (name, value, description) VALUES ('m2_only_perdec', '10', 'What perdecage of mods should get M2d? 1=1/10th, 10=all');
+
+# for plugins/Tags
+# perl -MSlash::Test=virtusername -le 'map { $tags->setTagname($_, { exclude => 1 }) } map { $tags->getTagnameidCreate($_) } split / /, $constants->{tagbox_top_excludetagnames}; map { $tags->setTagname($_, { posneg => "-" }) } map { $tags->getTagnameidCreate($_) } split ",", $constants->{tags_negative_tagnames}; $tags->setTagname($tags->getTagnameidCreate("nod"), { posneg => "+" }); map { $tags->setTagname($_, { popup => 1, posneg => "+" }) } map { $tags->getTagnameidCreate($_) } qw(interesting fresh funny insightful); map { $tags->setTagname($_, { popup => 1, posneg => "-" }) } map { $tags->getTagnameidCreate($_) } qw(binspam dupe notthebest offtopic stupid slownewsday stale)'
+DELETE FROM vars WHERE name IN ('tagbox_top_excludetagnames', 'tags_negative_tagnames');
+
+# 2007-12-20
+UPDATE vars SET value = 'T_2_5_0_188' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE accesslog CHANGE query_string query_string VARCHAR(254) DEFAULT NULL;
+
+# for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_active_mincare', '5', 'Minimum color slice number to "care" about tags for the Slashdot Recent Tags box (only matters if FireHose installed and if you are Slashdot)');
+
+# 2008-01-09
+UPDATE vars SET value = 'T_2_5_0_189' WHERE name = 'cvs_tag_currentcode';
+
+# 2008-01-21
+UPDATE vars SET value = 'T_2_5_0_190' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/Slashboxes
+UPDATE vars SET name = 'topcomm_num', value = 5, description = 'Number of comments wanted for the Hot Comments slashbox. Defaults to 5.' WHERE name = 'top10comm_num';
+UPDATE vars SET name = 'topcomm_days', description = 'Look back (n) days to display the Hot Comments slashbox' WHERE name = 'top10comm_days';
+UPDATE blocks SET bid = 'topcomments', title = 'Hot Comments' WHERE bid = 'top10comments';
+INSERT INTO vars (name, value, description) VALUES ('lastsrandsec_ostg', 'linuxcom', 'Last Block used in the semi-random OSTG block');
+
+# set to '1' for Slashdot
+INSERT INTO vars (name, value, description) VALUES ('use_default_slashboxes', 0, 'Toggle to turn off certain blocks on a per-site basis');
+
+INSERT INTO blocks (bid, block, seclev, type, description, skin, ordernum, title, portal, url, rdf, retrieve) VALUES ('srandblock_ostg', '', 100, 'portald','', 1, 5, 'Linux.com', 1, 'http://www.linux.com/', 'http://www.linux.com/feature?theme=rss', 0);
+UPDATE blocks SET ordernum = 3 WHERE bid = 'poll';
+UPDATE blocks SET ordernum = 6, portal = 1 WHERE bid = 'index_jobs';
+UPDATE blocks SET ordernum = 7 WHERE bid = 'index_qlinks';
+UPDATE blocks SET ordernum = 8 WHERE bid = 'mainpage_more';
+UPDATE blocks SET ordernum = -1 WHERE bid = 'freshmeat';
+
+# 2008-01-24
+UPDATE vars SET value = 'T_2_5_0_191' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Admin
+INSERT INTO vars (name, value, description) VALUES ('topics_sectional_weight', '10', 'Minimum weight for sectional stories');
+
+# For plugins/Stats
+ALTER TABLE stats_daily MODIFY name varchar(48) NOT NULL DEFAULT '';
+
+# For plugins/FireHose
+
+# 2008-01-31
+UPDATE vars SET value = 'T_2_5_0_192' WHERE name = 'cvs_tag_currentcode';
+
+# 2008-02-07
+UPDATE vars SET value = 'T_2_5_0_193' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE users MODIFY newpasswd varchar(32) default '', ADD COLUMN newpasswd_ts datetime DEFAULT NULL AFTER newpasswd;
+UPDATE users SET newpasswd=MD5(newpasswd), newpasswd_ts=NOW() WHERE newpasswd IS NOT NULL;
+INSERT INTO vars (name, value, description) VALUES ('mailpass_valid_days','3','A mailed newpasswd is expired after this many days');
+
+# 2008-02-13
+UPDATE vars SET value = 'T_2_5_0_194' WHERE name = 'cvs_tag_currentcode';
+
+# For sites *without* plugins/Tags
+DELETE FROM clout_types;
+
+# these have not been used in years
+DELETE FROM templates WHERE page = "comments" AND skin = "default" AND name IN ("newdiscussion","discuss_list","udiscuss_list");
+
+# 2008-02-20
+UPDATE vars SET value = 'T_2_5_0_195' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_unknowntype_default_clid', '1', 'For tags of unknown type, which clout id do we pretend they are?');
+INSERT INTO vars (name, value, description) VALUES ('tags_unknowntype_default_mult', '0.3', 'For tags of unknown type, what multiplier do we give to the tagging user clout or type tags_unknowntype_default_clid?');
+
+# 2008-02-28
+UPDATE vars SET value = 'T_2_5_0_196' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_prefixlist_minlen', '3', 'Minimum length of a tag prefix to bother looking up suggestions for');
+
+# 2008-03-12
+UPDATE vars SET value = 'T_2_5_0_197' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Ajax
+UPDATE ajax_ops set reskey_name = 'ajax_user_static', reskey_type='createuse' WHERE op='admin_signoff';
+
+# comments
+DELETE FROM reskey_resource_checks WHERE rkrid = 1;
+
+DELETE FROM reskey_vars WHERE rkrid = 1;
+
+# for plugins/Tags
+CREATE TABLE tagname_cache (
+   tagnameid   int UNSIGNED NOT NULL,
+   tagname     VARCHAR(64) NOT NULL,
+   weight      FLOAT UNSIGNED DEFAULT 0.0 NOT NULL,
+   PRIMARY KEY tagnameid (tagnameid),
+   UNIQUE tagname (tagname)
+);
+
+# 2008-03-19
+UPDATE vars SET value = 'T_2_5_0_198' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/ResKey
+
+# for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_usershow_cutoff', '200', 'More tags than this, and instead of showing the full taglist /~user/tags will show the list of tagnames');
+INSERT INTO vars (name, value, description) VALUES ('tags_active_maxshow', '200', 'Maximum number of tagged objects to display on /tags/foo');
+
+# for tagboxes/FHEditorPop
+INSERT INTO vars (name, value, description) VALUES ('tagbox_fheditorpop_susp_flagpop', '185', 'Admin score to artificially raise a suspicious host item to until an admin tags it');
+INSERT INTO vars (name, value, description) VALUES ('tagbox_fheditorpop_susp_maxtaggers', '7', 'Max number of unique users tagging (not voting) a low-scoring firehose item that should not raise suspicion');
+INSERT INTO vars (name, value, description) VALUES ('tagbox_fheditorpop_susp_minscore', '100', 'Min score required to not raise suspicion');
+
+# for User2
+CREATE TABLE user_events (
+   eid int UNSIGNED NOT NULL auto_increment,
+   code int UNSIGNED NOT NULL default 0,
+   uid mediumint(8) UNSIGNED NOT NULL default 0,
+   event int UNSIGNED NOT NULL default 0,
+   date datetime NOT NULL default '0000-00-00 00:00:00',
+   PRIMARY KEY eid (eid),
+   KEY uid (uid)
+);
+
+CREATE TABLE user_event_blocks (
+   bid int UNSIGNED NOT NULL auto_increment,
+   uid mediumint UNSIGNED NOT NULL default 0,
+   code int UNSIGNED NOT NULL default 0,
+   block varchar(255) default NULL,
+   PRIMARY KEY bid (bid),
+   KEY uid (uid)
+);
+
+CREATE TABLE user_event_types (
+   code smallint UNSIGNED NOT NULL auto_increment,
+   type varchar(32) NOT NULL default '',
+   PRIMARY KEY code (code)
+);
+
+# 2008-04-02
+UPDATE vars SET value = 'T_2_5_0_199' WHERE name = 'cvs_tag_currentcode';
+
+# for tagboxes/RecentTags
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_recenttags_minclout', '4', 'Minimum clout sum to count a tagname');
+
+# for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_updateclouts_debuguids', '', 'UIDs to print debug info on during clout recalculation');
+
+# 2008-04-03
+UPDATE vars SET value = 'T_2_5_0_200' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+CREATE TABLE firehose_update_log(
+  id mediumint(8) unsigned NOT NULL auto_increment,
+  uid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+  new_count SMALLINT UNSIGNED NOT NULL DEFAULT '0', 
+  update_count SMALLINT UNSIGNED NOT NULL DEFAULT '0',
+  total_num SMALLINT UNSIGNED NOT NULL DEFAULT '0',
+  more_num SMALLINT UNSIGNED NOT NULL DEFAULT '0',
+  ts datetime DEFAULT '1970-01-01 00:00:00' NOT NULL,
+  duration FLOAT DEFAULT 0.0 NOT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE firehose_setting_log(
+  id mediumint(8) unsigned NOT NULL auto_increment,
+  uid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+  name VARCHAR(32) NOT NULL DEFAULT '',
+  value VARCHAR(64) NOT NULL DEFAULT '',
+  ts datetime DEFAULT '1970-01-01 00:00:00' NOT NULL,
+  bytes mediumint UNSIGNED DEFAULT 0 NOT NULL,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO vars (name, value, description) VALUES ('firehose_logging', '0', 'Log firehose usage info?');
+
+# for plugins/ResKey (comments)
+
+# 2008-04-09
+UPDATE vars SET value = 'T_2_5_0_201' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/ResKey (submit)
+
+# for plugins/ResKey (comments)
+DELETE FROM reskey_vars WHERE rkrid = 1 AND name = 'max_duration';
+
+# for plugins/FireHose
+ALTER TABLE firehose_update_log ADD bytes mediumint UNSIGNED DEFAULT 0 NOT NULL;
+ALTER TABLE firehose_setting_log DROP column bytes; 
+
+# 2008-04-16
+UPDATE vars SET value = 'T_2_5_0_202' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE sessions ADD column last_action varchar(16);
+
+# For plugins/FireHose
+INSERT INTO vars (name, value, description) VALUES ('firehose_mcd_disp', '1', 'Cache dispFireHose results');
+
+# 2008-05-01
+UPDATE vars SET value = 'T_2_5_0_203' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/FireHose
+
+# for plugins/Stats
+INSERT INTO vars (name, value, description) VALUES ('stats_firehose_spamcount', '0', 'Number of firehose items marked as is_spam');
+
+# 2008-05-07
+UPDATE vars SET value = 'T_2_5_0_204' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/FireHose
+INSERT INTO vars (name, value, description) VALUES ('firehose_adminupclout', '0.5', 'Admin clout for upvotes can be reduced by specifying a number between 0 and 1');
+
+# for tagboxes/FHEditorPop
+UPDATE vars SET name='tagbox_fheditorpop_maxudcmult' WHERE name='tagbox_fhpopularity2_maxudcmult';
+
+CREATE TABLE comment_promote_log (
+  id int unsigned NOT NULL auto_increment,
+  cid int unsigned NOT NULL default '0',
+  ts datetime NOT NULL default '1970-01-01 00:00:00',
+  PRIMARY KEY  (id),
+  KEY cid (cid)
+); 
+
+
+# For plugins/Firehose
+
+
+# 2008-05-15
+UPDATE vars SET value = 'T_2_5_0_205' WHERE name = 'cvs_tag_currentcode';
+
+# 2008-05-21
+UPDATE vars SET value = 'T_2_5_0_206' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('imagemagick_convert', '/usr/bin/convert', 'Location of imagemagick convert for thumbnail generation');
+
+# 2008-05-22
+UPDATE vars SET value = 'T_2_5_0_207' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/HumanConf
+
+UPDATE vars SET name='clientip_xff_trust_regex' WHERE name='x_forwarded_for_trust_regex';
+INSERT IGNORE INTO vars (name, value, description) VALUES ('clientip_xff_trust_regex','^127\\.0\\.0\\.1$','IP addresses from which we will trust an X-Forwarded-For header');
+INSERT INTO vars (name, value, description) VALUES ('clientip_xff_trust_header','','Name of HTTP request header to prefer over "X-Forwarded-For", if present');
+
+ALTER TABLE urls ADD INDEX bfu (believed_fresh_until);
+
+# for plugins/FireHose
+
+ALTER TABLE stories ADD COLUMN archive_last_update DATETIME DEFAULT '1970-01-01 00:00:00' NOT NULL;
+# keep last_update the same
+UPDATE stories SET archive_last_update=last_update, last_update=last_update;
+
+
+# 2008-06-04
+UPDATE vars SET value = 'T_2_5_0_208' WHERE name = 'cvs_tag_currentcode';
+
+
+# for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_overnight_minweightsum', '0.1', 'Minimum tagbox weight sum for overnight processing. To disable overnight difference, set to 1');
+INSERT INTO vars (name, value, description) VALUES ('tags_overnight_starthour', '7', 'GMT hour at which overnight processing begins');
+INSERT INTO vars (name, value, description) VALUES ('tags_overnight_stophour', '10', 'GMT hour after which overnight processing ends');
+
+# for tagboxes/CommentScoreReason
+INSERT INTO vars (name, value, description) VALUES ('tagbox_csr_baseneediness', '60', 'Base neediness score for comments that have been moderated');
+
+# 2008-06-19
+UPDATE vars SET value = 'T_2_5_0_209' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/FireHose
+
+CREATE TABLE firehose_skin_volume(
+	skid SMALLINT UNSIGNED NOT NULL,
+	story_vol MEDIUMINT UNSIGNED DEFAULT '0' NOT NULL,
+	other_vol MEDIUMINT UNSIGNED DEFAULT '0' NOT NULL,
+	PRIMARY KEY (skid)
+);
+
+DROP TABLE IF EXISTS users_comments_read_log;
+CREATE TABLE users_comments_read_log (
+	uid MEDIUMINT UNSIGNED NOT NULL,
+	discussion_id MEDIUMINT UNSIGNED NOT NULL,
+	cid INT UNSIGNED NOT NULL,
+	UNIQUE (discussion_id,uid,cid)
+);
+
+# 2008-06-26
+UPDATE vars SET value = 'T_2_5_0_210' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+ALTER TABLE tagboxes ADD COLUMN nosy_gtids varchar(255) DEFAULT '' NOT NULL;
+INSERT INTO vars (name, value, description) VALUES ('tags_feederlog_largerows', '50000', 'Number of rows at which the feederlog is considered "large", slowing additions');
+INSERT INTO vars (name, value, description) VALUES ('tags_tagbox_lastglobjid', '0', 'Last globjid that the tagbox scanned for possible insertion into feeder log');
+
+# for plugins/FireHose
+
+# 2008-07-03
+UPDATE vars SET value = 'T_2_5_0_211' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+DELETE FROM ajax_ops WHERE op='tags_get_combined_firehose';
+DELETE FROM ajax_ops WHERE op='tags_get_top_firehose';
+
+# for tagboxes/CommentScoreReason
+INSERT INTO vars (name, value, description) VALUES ('tagbox_csr_minneediness', '138', 'Minimum neediness score to possibly insert a needy comment into the firehose');
+INSERT INTO vars (name, value, description) VALUES ('tagbox_csr_needinesspercent', '5', 'Percentage of comments with the necessary minimum neediness which actually do get inserted into the firehose');
+
+# 2008-07-10
+UPDATE vars SET value = 'T_2_5_0_212' WHERE name = 'cvs_tag_currentcode';
+
+SELECT @maxbitpos := MAX(bitpos) FROM al2_types;
+INSERT INTO al2_types VALUES (NULL, @maxbitpos+1, 'openproxy', 'Open Proxy');
+
+UPDATE ajax_ops SET reskey_name='ajax_user_static' WHERE op='tags_setget_combined';
+
+# for tagboxes/FHEditorPop
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fheditorpop_maybefrac', '0.1', 'Amount that an editor nod+maybe boosts editorpop, expressed as fraction of a plain editor nod');
+
+# for tagboxes/FHPopularity
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fhpopularity_maybefrac', '1.0', 'Amount that an editor nod+maybe boosts popularity, expressed as fraction of a plain nod');
+
+# 2008-07-16
+UPDATE vars SET value = 'T_2_5_0_213' WHERE name = 'cvs_tag_currentcode';
+
+# 2008-07-31
+UPDATE vars SET value = 'T_2_5_0_214' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/FireHose
+
+DROP TABLE IF EXISTS xsite_auth_log;
+CREATE TABLE xsite_auth_log (
+	site VARCHAR(30) DEFAULT '' NOT NULL,
+	ts DATETIME DEFAULT '0000-00-00 00:00' NOT NULL,
+	nonce VARCHAR(30) DEFAULT '' NOT NULL,
+	UNIQUE KEY (site,ts,nonce)
+);
+
+
+# 2008-08-07
+UPDATE vars SET value = 'T_2_5_0_215' WHERE name = 'cvs_tag_currentcode';
+
+CREATE TABLE projects (
+	id mediumint UNSIGNED NOT NULL auto_increment,
+	uid mediumint UNSIGNED NOT NULL DEFAULT 0,
+	unixname varchar(24) NOT NULL DEFAULT '',
+	textname varchar(64) NOT NULL DEFAULT '',
+	url_id INT(10) UNSIGNED NOT NULL DEFAULT 0,
+	createtime DATETIME DEFAULT '1970-01-01 00:00:00' NOT NULL,
+	srcname varchar(32) NOT NULL DEFAULT 0,
+	description         TEXT NOT NULL DEFAULT '',
+	PRIMARY KEY (id),
+	UNIQUE unixname (unixname)
+);
+
+INSERT INTO globj_types VALUES (NULL, 'projects');
+INSERT INTO discussion_kinds (dkid, name) VALUES (NULL, 'project');
+
+INSERT IGNORE INTO vars (name, value, description) VALUES ('optipng', '', 'path to optipng if it is to be used for compressing thumbnails');
+
+# 2008-08-13
+UPDATE vars SET value = 'T_2_5_0_216' WHERE name = 'cvs_tag_currentcode';
+
+# 2008-08-21
+UPDATE vars SET value = 'T_2_5_0_217' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+
+# 2008-08-28
+UPDATE vars SET value = 'T_2_5_0_218' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+ALTER TABLE tagboxes DROP COLUMN affected_type, DROP COLUMN clid, DROP COLUMN nosy_gtids;
+DROP TABLE tagbox_userkeyregexes;
+
+# for tagboxes/FHEditorPop
+INSERT IGNORE INTO vars (name, value, description) VALUES ('tagbox_fheditorpop_needypercent', '3', 'Percentage of all comments which show up in an editor\'s hose (should be <= tagbox_csr_needinesspercent)');
+
+UPDATE ajax_ops set reskey_name='ajax_base' where op="firehose_get_updates";
+
+# 2008-09-04
+UPDATE vars SET value = 'T_2_5_0_219' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/FireHose
+DROP TABLE IF EXISTS firehose_topics_rendered;
+CREATE TABLE firehose_topics_rendered (
+	id MEDIUMINT UNSIGNED NOT NULL,
+	tid SMALLINT(5) UNSIGNED NOT NULL,
+	UNIQUE id_tid (id, tid),
+	INDEX tid_id (tid, id)
+);
+
+###################################################################
+# Read the comments at the top of utils/convertFirehoseData200809 #
+# to learn about converting firehose data to use new code in this #
+# tag.  You should run this utility after the sql above is        #
+# executed and the code for this tag is installed.                #
+#                                                                 #
+# Code after this point will expect and rely on the data created  #
+# by this utility existing                                        #
+#                                                                 #
+# To run this utility:                                            #
+# convertFirehoseData200809 -u <virtual_user>                     #
+###################################################################
+
+# for plugins/Metamod and plugins/FireHose
+# if you want to use firehose for metamoderation set this to 1 otherwise set to 0
+INSERT INTO vars (name, value, description) VALUES ('metamod_use_firehose', '0', 'Use firehose for metamodding');
+
+# for User2
+INSERT INTO user_event_types VALUES (4, 'Bookmarks');
+INSERT INTO user_event_types VALUES (5, 'Friends');
+
+# 2008-09-11
+UPDATE vars SET value = 'T_2_5_0_220' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+INSERT INTO css (rel, type, media, file, title, skin, page, admin, theme, ctid, ordernum, ie_cond) VALUES ('stylesheet','text/css','screen, projection','firehose.css','','','index2','no','',2,0, '');
+
+# 2008-09-17
+UPDATE vars SET value = 'T_2_5_0_221' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('index_new_user_beta', '0', 'Use index beta for new users?');
+
+# for plugins/FireHose
+INSERT INTO vars (name, value, description) VALUES ('firehose_memcached_disp_exptime', '180', 'Seconds to cache firehose display');
+
+# for plugins/Tags
+DROP TABLE IF EXISTS tagcommand_adminlog_sfnet;
+CREATE TABLE tagcommand_adminlog_sfnet (
+	id		int UNSIGNED NOT NULL AUTO_INCREMENT,
+	cmdtype		VARCHAR(6) NOT NULL,
+	tagnameid	int UNSIGNED NOT NULL,
+	globjid		int UNSIGNED DEFAULT NULL,
+	sfnetadminuid	mediumint UNSIGNED NOT NULL,
+	created_at	datetime NOT NULL,
+	PRIMARY KEY id (id),
+	KEY created_at (created_at),
+	KEY tagnameid_globjid (tagnameid, globjid)
+);
+
+# 2008-09-25
+UPDATE vars SET value = 'T_2_5_0_222' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Subscribe
+INSERT INTO blocks (bid, block, seclev, type, description, skin, ordernum, title, portal, url, rdf, retrieve) VALUES ('subscriber_plug', '', 10000, 'static', 'Plug for subscribers', 'mainpage', 0, 'Subscriber plug', 0, NULL, '', 0);
+
+# 2008-10-02
+UPDATE vars SET value = 'T_2_5_0_223' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Journal
+ALTER TABLE journals_text ADD COLUMN introtext TEXT NOT NULL;
+
+# 2008-10-09
+UPDATE vars SET value = 'T_2_5_0_224' WHERE name = 'cvs_tag_currentcode';
+
+# For Thinkgeek related stuff
+ALTER TABLE users ADD COLUMN shill_id TINYINT UNSIGNED DEFAULT 0 NOT NULL;
+UPDATE users SET shill_id = 1 WHERE seclev = 10000 OR author = 1;
+DROP TABLE IF EXISTS shill_ids;
+CREATE TABLE shill_ids (
+        shill_id TINYINT UNSIGNED DEFAULT 0 NOT NULL PRIMARY KEY,
+        user varchar(16) NOT NULL default ''
+);
+INSERT INTO shill_ids VALUES (1, 'Admin');
+INSERT INTO shill_ids VALUES (2, 'ThinkGeek');
+
+# for plugins/Zoo
+INSERT INTO vars (name, value, description) VALUES ('badge_icon_ext', 'gif', 'Badge icon extension ("gif" or "png", probably)');
+INSERT INTO vars (name, value, description) VALUES ('badge_icon_size', '15', 'Badge icon height/width');
+INSERT INTO vars (name, value, description) VALUES ('badge_icon_size_wide', '15', 'Badge icon width for wide icons');
+# for Slashdot ...
+#INSERT INTO vars (name, value, description) VALUES ('badge_icon_ext', 'png', 'Badge icon extension ("gif" or "png", probably)');
+#INSERT INTO vars (name, value, description) VALUES ('badge_icon_size', '16', 'Badge icon height/width');
+#INSERT INTO vars (name, value, description) VALUES ('badge_icon_size_wide', '32', 'Badge icon width for wide icons');
+
+# adding ie-version specific css for www.slashdot.org
+#INSERT INTO `css` VALUES
+#(NULL,'stylesheet','text/css','screen/projection','ie6.css','','','','no','',3,1,'lt IE 7','no'),
+#(NULL,'stylesheet','text/css','screen/projection','ie7.css','','','','no','',3,1,'IE 7','no'),
+#(NULL,'stylesheet','text/css','screen/projection','ie8.css','','','','no','',3,1,'gte IE 8','no');
+
+# 2008-10-16
+UPDATE vars SET value = 'T_2_5_0_225' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE css ADD layout VARCHAR(16) DEFAULT '';
+ALTER TABLE css ADD INDEX layout (layout);
+
+# for Slashdot run latest set of changes from /themes/slashdot/sql/mysql/upgrades here
+
+# 2008-10-23
+UPDATE vars SET value = 'T_2_5_0_226' WHERE name = 'cvs_tag_currentcode';
+
+# Fixing incorrectly defined media types in 'css' table
+UPDATE css SET media="screen, projection" WHERE media="screen/projection";
+
+# 2008-10-24
+UPDATE vars SET value = 'T_2_5_0_227' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Bookmark
+ALTER TABLE bookmark_feeds ADD COLUMN nofilter TINYINT UNSIGNED DEFAULT 0 NOT NULL;
+
+# for plugins/Tags
+
+
+# 2008-10-30
+UPDATE vars SET value = 'T_2_5_0_228' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Bookmark
+
+# For plugins/FireHose
+CREATE TABLE firehose_view(
+	id mediumint(8) unsigned NOT NULL auto_increment,
+	uid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+	viewname VARCHAR(16) NOT NULL DEFAULT 'unnamed',
+	useparentfilter ENUM("no","yes") DEFAULT "yes",
+	tab_display ENUM("no","yes") DEFAULT "no",
+	options_edit ENUM("no","yes") DEFAULT "no",
+	admin_maxitems tinyint NOT NULL DEFAULT -1,
+	maxitems tinyint NOT NULL DEFAULT -1,
+	seclev mediumint UNSIGNED NOT NULL DEFAULT '0',
+	filter VARCHAR(255) NOT NULL DEFAULT '',
+	orderby ENUM("popularity","createtime", "editorpop", "activity", "neediness", "") DEFAULT "createtime",
+	orderdir ENUM("ASC", "DESC", "") DEFAULT "DESC",
+	color VARCHAR(16) NOT NULL DEFAULT '',
+	duration ENUM("7","-1","") DEFAULT '',
+	mode ENUM ("full","fulltitle", "") DEFAULT "",
+	mixedmode ENUM("1","0","") DEFAULT "",
+	pause ENUM("1","0","") DEFAULT "",
+
+	PRIMARY KEY (id),
+	UNIQUE id_viewname(id,viewname)
+);
+
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "metamod", "no", "comment", "neediness", "DESC", "black", "-1", "full", "0", "no", "no", 20, 20, 1,"1");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "userjournal", "no", '"author:{nickname}" journal', "createtime", "DESC", "black", "-1", "full", "0", "no", "no", 20, 20, 0,"1");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "usersubmission", "no", '"author:{nickname}" submission', "createtime", "DESC", "black", "-1", "full", "0", "no", "no", 20, 20, 0,"1");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "userbookmark", "no", '"author:{nickname}" bookmark', "createtime", "DESC", "black", "-1", "full", "0", "no", "no", 20, 20, 0,"1");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "userfirehose", "no", '"user:{nickname}"', "createtime", "DESC", "black", "-1", "full", "0", "no", "no", 20, 20, 0,"1");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "stories", "yes", 'story', "createtime", "DESC", "black", "-1", "full", "1", "yes", "yes", 30, 30, 0,"");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "recent", "yes", '-story', "createtime", "DESC", "blue", "7", "fulltitle", "0", "yes", "yes", 50, 30, 0,"");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "popular", "yes", '-story', "createtime", "DESC", "black", "7", "full", "1", "yes", "yes", 50, 30, 0,"");
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "daddypants", "yes", 'unsigned', "createtime", "DESC", "indigo", "-1", "fulltitle", "1", "yes", "yes", 50, 30, 100,"");
+
+UPDATE firehose_view SET filter="-story" WHERE viewname="popular";
+
+# 2008-11-06
+UPDATE vars SET value = 'T_2_5_0_229' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+CREATE TABLE globjs_viewed_archived (
+	gvid            int UNSIGNED NOT NULL,
+	globjid         int UNSIGNED NOT NULL,
+	uid             mediumint UNSIGNED NOT NULL,
+	viewed_at       datetime NOT NULL,
+	PRIMARY KEY (gvid),
+	UNIQUE globjid_uid (globjid, uid)
+);
+
+# For plugins/Users2
+INSERT INTO vars (name, value, description) VALUES ('u2','0','Toggle on/off Users2');
+
+# For plugins/FireHose
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "usertag", "no", '"user:{nickname}" "tag:{tag}"', "createtime", "DESC", "black", "-1", "full", "0", "no", "no", 20, 20, 0,"1");
+UPDATE firehose_view SET mixedmode="" WHERE viewname="daddypants";
+ALTER TABLE firehose_view MODIFY COLUMN viewname VARCHAR(24) DEFAULT 'unnamed';
+INSERT INTO firehose_view (id, uid, viewname, useparentfilter, filter, orderby, orderdir, color, duration, mode, mixedmode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause) VALUES (NULL, 0, "userjournalfriends", "no", '"authorfriend:{nickname}" journal', "createtime", "DESC", "black", "-1", "full", "0", "no", "no", 20, 20, 0,"1");
+
+# skipping _230 because i goofed
+# 2008-11-20
+UPDATE vars SET value = 'T_2_5_0_231' WHERE name = 'cvs_tag_currentcode';
+
+
+create temporary table firehose_deletedjournal (id int unsigned not null primary key);
+drop table firehose_deletedjournal;
+
+# For plugins/FireHose
+
+# For plugins/Users2
+ALTER TABLE shill_ids ADD COLUMN extra VARCHAR(40) DEFAULT '' NOT NULL;
+
+# 2008-11-25
+UPDATE vars SET value = 'T_2_5_0_232' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/FireHose
+
+UPDATE menus SET value=REPLACE(value, '/~', '[% constants.real_rootdir %]/~') WHERE menu='users' AND value REGEXP '^/~';
+
+# For plugins/Users2
+ALTER TABLE shill_ids ADD COLUMN skid SMALLINT DEFAULT '0' NOT NULL;
+
+# 2008-11-26
+UPDATE vars SET value = 'T_2_5_0_233' WHERE name = 'cvs_tag_currentcode';
+
+
+# 2008-12-04
+UPDATE vars SET value = 'T_2_5_0_234' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/FireHose
+
+# 2008-12-11
+UPDATE vars SET value = 'T_2_5_0_235' WHERE name = 'cvs_tag_currentcode';
+
+# SLASHCODE/USEPERL LAST UPDATED HERE
+
+UPDATE firehose_view SET mode="fulltitle" WHERE viewname="userbookmark";
+
+# We've let stale templates build up for too long:
+DELETE FROM templates WHERE name='alllist' AND page='zoo' AND skin='default';
+DELETE FROM templates WHERE name='autocomplete' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='combined_tags' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='commentreply' AND page='messages' AND skin='default';
+DELETE FROM templates WHERE name='d2prefs' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='data' AND page='unsubscribe' AND skin='default';
+DELETE FROM templates WHERE name='firehose_tags_top' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='form' AND page='unsubscribe' AND skin='default';
+DELETE FROM templates WHERE name='init_tag_ui' AND page='firehose' AND skin='default';
+DELETE FROM templates WHERE name='init_tagui' AND page='firehose' AND skin='default';
+DELETE FROM templates WHERE name='listpolls' AND page='pollBooth' AND skin='polls';
+DELETE FROM templates WHERE name='miniAdminMenu' AND page='users' AND skin='default';
+DELETE FROM templates WHERE name='moderation' AND page='comments' AND skin='default';
+DELETE FROM templates WHERE name='nodnix_menus' AND page='firehose' AND skin='default';
+DELETE FROM templates WHERE name='printCommentsNone' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='reject' AND page='firehose' AND skin='default';
+DELETE FROM templates WHERE name='reject_firehose' AND page='firehose' AND skin='default';
+DELETE FROM templates WHERE name='slashd_log' AND page='admin' AND skin='default';
+DELETE FROM templates WHERE name='slashdot_it' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='submit' AND page='slashdot-it' AND skin='default';
+DELETE FROM templates WHERE name='tag_display' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='tag_widget' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='tagsfirehosedivadmin' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='tagsfirehosedivtagbox' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='tagsfirehosedivuser' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='tagsnodnixuser' AND page='misc' AND skin='default';
+DELETE FROM templates WHERE name='tagstack' AND page='firehose' AND skin='default';
+DELETE FROM templates WHERE name='topicsearch' AND page='search' AND skin='default';
+
+# 2008-12-18
+UPDATE vars SET value = 'T_2_5_0_236' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE users ADD INDEX seclev (seclev);
+
+# For blocks
+ALTER TABLE blocks ADD COLUMN shill enum('yes','no') NOT NULL DEFAULT 'no';
+ALTER TABLE blocks ADD COLUMN shill_uid mediumint(8) unsigned NOT NULL DEFAULT '0';
+
+# 2009-01-16
+UPDATE vars SET value = 'T_2_5_0_237' WHERE name = 'cvs_tag_currentcode';
+
+DROP TABLE IF EXISTS firehose_section;
+CREATE TABLE firehose_section(
+	fsid mediumint(8) unsigned NOT NULL auto_increment,
+	uid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+	section_name VARCHAR(32) NOT NULL DEFAULT 'unnamed',
+	section_filter VARCHAR(255) NOT NULL DEFAULT '',
+	skid SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+	display ENUM("yes","no") DEFAULT 'yes',
+	view_id mediumint(8) unsigned NOT NULL DEFAULT 0,
+	ordernum tinyint DEFAULT '0',
+	PRIMARY KEY (fsid)
+	
+);
+
+# IMPORTAN: run `utils/gen_firehose_sections VIRTUAL_USER` after running upgrades
+
+CREATE TABLE firehose_section_settings(
+	id mediumint(8) unsigned NOT NULL auto_increment,
+	fsid mediumint(8) unsigned NOT NULL,
+	uid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+	section_name VARCHAR(32) NOT NULL DEFAULT 'unnamed',
+	section_filter VARCHAR(255) NOT NULL DEFAULT '',
+	display ENUM("yes","no") DEFAULT 'yes',
+	view_id mediumint(8) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY (id),
+	UNIQUE uid_fsid(uid,fsid)
+);
+
+
+# 2009-01-19
+UPDATE vars SET value = 'T_2_5_0_238' WHERE name = 'cvs_tag_currentcode';
+# 2009-01-20
+DELETE FROM css WHERE file='iestyles.css' AND ie_cond='IE';
+
+
+# For plugins/FireHose
+
+# 2009-01-22
+UPDATE vars SET value = 'T_2_5_0_239' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('postedout_end_secs','21600','Window to count posted-out stories closes this many seconds in the future');
+INSERT INTO vars (name, value, description) VALUES ('postedout_start_secs','300','Window to count posted-out stories opens this many seconds in the future');
+INSERT INTO vars (name, value, description) VALUES ('postedout_thisnexusonly','0','If nonzero, only count posted-out stories that are rendered in this nexus, otherwise count all');
+INSERT INTO vars (name, value, description) VALUES ('postedout_wanted','2','Number of posted-out stories considered a satisfying normal amount');
+
+# For plugins/Achievements
+CREATE TABLE achievements (
+        aid mediumint(8) unsigned NOT NULL auto_increment,
+        name varchar(30) NOT NULL default '',
+        description varchar(128) NOT NULL default '',
+        repeatable enum('yes','no') NOT NULL default 'no',
+        increment tinyint(1) unsigned NOT NULL default '0',
+        PRIMARY KEY (aid)
+);
+CREATE TABLE user_achievements (
+        id mediumint(8) unsigned NOT NULL auto_increment,
+        uid mediumint(8) unsigned NOT NULL default '0',
+        aid mediumint(8) unsigned NOT NULL default '0',
+        exponent tinyint(1) unsigned NOT NULL default '0',
+        createtime datetime NOT NULL default '0000-00-00 00:00:00',
+        PRIMARY KEY  (id),
+        UNIQUE KEY achievement (uid,aid)
+);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('story_posted', 'Has Posted a Story', 'yes', 2);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('comment_posted', 'Has Posted a Comment', 'no', 0);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('journal_posted', 'Has Posted a Journal Entry', 'no', 0);
+
+# For plugins/FireHose
+SELECT @fsid := fsid FROM firehose_section where skid=1;
+INSERT INTO vars (name,value,description) VALUES ("firehose_mainpage_fsid",@fsid, "Firehose section id of mainpage skid");
+
+# 2009-01-29
+UPDATE vars SET value = 'T_2_5_0_240' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/Achievements
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('achievement_obtained', 'Got an Achievement', 'yes', 1);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('mod_points_exhausted', 'Spent All My Mod Points', 'no', 0);
+
+# 2009-02-05
+UPDATE vars SET value = 'T_2_5_0_241' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/Achievements
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('score5_comment', 'Got a Score:5 Comment', 'yes', 1);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('story_accepted', 'Submitted a Story That Was Posted', 'yes', 2);
+
+# For plugins/FireHose
+ALTER TABLE firehose_view ADD COLUMN viewtitle VARCHAR(24) NOT NULL DEFAULT '' AFTER viewname;
+ALTER TABLE firehose_view ADD COLUMN searchbutton ENUM("no","yes") DEFAULT "yes";
+
+# For plugins/Achievements (important!)
+ALTER TABLE user_achievements MODIFY COLUMN exponent smallint unsigned NOT NULL default '0';
+
+# For plugins/FireHose
+CREATE TABLE firehose_view_settings (
+	uid MEDIUMINT UNSIGNED NOT NULL DEFAULT '0',
+	id mediumint(8) unsigned NOT NULL,
+	color VARCHAR(16) NOT NULL DEFAULT '',
+	orderby ENUM("popularity","createtime", "editorpop", "activity", "neediness", "") DEFAULT "createtime",
+	orderdir ENUM("ASC", "DESC", "") DEFAULT "DESC",
+	mode ENUM ("full","fulltitle", "mixed","") DEFAULT "",
+	datafilter VARCHAR(128) NOT NULL DEFAULT '', 
+	admin_unsigned ENUM("no","yes") DEFAULT 'no',
+	usermode ENUM("no","yes") DEFAULT "yes",
+	PRIMARY KEY (uid,id)
+);
+ALTER TABLE firehose_view ADD COLUMN datafilter VARCHAR(128) NOT NULL DEFAULT '', ADD COLUMN admin_unsigned ENUM("no","yes") DEFAULT 'no', ADD COLUMN usermode ENUM("no","yes") DEFAULT "yes";
+ALTER TABLE firehose_view MODIFY COLUMN mode ENUM ("full","fulltitle", "mixed", "") DEFAULT "";
+UPDATE firehose_view set mode="mixed" where mixedmode=1;
+ALTER TABLE firehose_view DROP COLUMN mixedmode;
+UPDATE firehose_view SET usermode="yes",admin_unsigned="no";
+UPDATE firehose_view SET datafilter="story",filter="" WHERE filter="story";
+UPDATE firehose_view SET datafilter="-story",filter="" WHERE filter="-story";
+UPDATE firehose_view SET admin_unsigned="yes",filter="" WHERE filter="unsigned";
+UPDATE firehose_view SET admin_unsigned="yes", usermode="no" WHERE viewname="daddypants";
+UPDATE firehose_view SET mode="mixed" WHERE viewname IN ("stories","popular","daddypants");
+
+# 2009-02-13
+UPDATE vars SET value = 'T_2_5_0_242' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/FireHose
+ALTER TABLE firehose_view DROP INDEX id_viewname;
+ALTER TABLE firehose_view_settings CHANGE COLUMN id id mediumint(8) unsigned NOT NULL;
+
+# For plugins/Achievements
+UPDATE achievements SET increment = 2 WHERE name = 'score5_comment';
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('consecutive_days_read', 'Days Read in a Row', 'yes', 2);
+
+CREATE TABLE user_achievement_streaks (
+        id mediumint(8) unsigned NOT NULL auto_increment,
+        uid mediumint(8) unsigned NOT NULL default '0',
+        aid mediumint(8) unsigned NOT NULL default '0',
+        streak mediumint(8) unsigned NOT NULL default '0',
+        last_hit datetime NOT NULL default '0000-00-00 00:00:00',
+        PRIMARY KEY (id),
+        UNIQUE KEY achievement (uid,aid)
+);
+
+# for plugins/Sphinx
+INSERT INTO vars (name, value, description) VALUES ('sphinx_se', '0', 'Use SphinxSE instead of the API directly?');
+INSERT INTO vars (name, value, description) VALUES ('sphinx_01_hostname_searchd', '', 'Hostname for the sphinx01 instance: searchd');
+UPDATE vars SET name='sphinx_01_hostname_sphinxse', description='Hostname for the sphinx01 instance: SphinxSE on mysqld' WHERE name='sphinx_01_hostname';
+
+# For plugins/FireHose
+ALTER TABLE firehose_view ADD COLUMN use_exclusions ENUM("no","yes") DEFAULT "yes";
+UPDATE firehose_view SET use_exclusions="no" WHERE viewname like 'user%' OR viewname IN ("search","daddypants","metamod");
+
+# 2009-02-20
+UPDATE vars SET value = 'T_2_5_0_243' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+INSERT INTO vars (name, value, description) VALUES ('tags_tagbox_maxruntime', '28800', 'Restart tagbox.pl after running this long, to mitigate any memory leaks, 0 for never');
+
+# for plugins/Achievements
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('consecutive_days_metamod', 'Days Metamoderated in a Row', 'yes', 2);
+UPDATE achievements SET description = 'Posted a Story' where name = 'story_posted';
+UPDATE achievements SET description = 'Posted a Comment' where name = 'comment_posted';
+UPDATE achievements SET description = 'Posted a Journal Entry' where name = 'journal_posted';
+UPDATE achievements SET description = 'Achievements' where name = 'achievement_obtained';
+
+# for plugins/FireHose
+UPDATE firehose_view SET duration = "-1" WHERE viewname NOT IN ("metamod", "popular");
+
+# PUDGE LAST UPDATED HERE
+
+# for plugins/Messages
+INSERT INTO message_codes (code, type, seclev, modes, delivery_bvalue) VALUES (22, 'Achievement', 100, '', 3);
+
+# for tagboxes/FHTFH
+CREATE TABLE firehose_tfhp (
+	uid             mediumint UNSIGNED NOT NULL,
+	globjid         int UNSIGNED NOT NULL,
+	UNIQUE uid_globjid (uid, globjid),
+	INDEX globjid (globjid)
+);
+
+# 2009-02-26
+UPDATE vars SET value = 'T_2_5_0_244' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Bookmark
+ALTER TABLE bookmark_feeds ADD COLUMN attended ENUM('no', 'yes') NOT NULL DEFAULT 'no';
+UPDATE bookmark_feeds SET attended='yes' WHERE feedname='ThinkGeek';
+
+# for plugins/FireHose
+INSERT INTO firehose_view (id, uid, viewname, viewtitle, useparentfilter, filter, orderby, orderdir, color, duration, mode, tab_display, options_edit, admin_maxitems, maxitems, seclev, pause, searchbutton, use_exclusions) VALUES (NULL, 0, "userhomepage", "User's Homepage", "no", '"home:{nickname}"', "createtime", "DESC", "black", "-1", "full", "no", "no", 20, 20, 0,"1","yes", "yes");
+
+# for plugins/Sphinx
+
+# for plugins/DynamicBlocks
+INSERT INTO vars (name, value, description) VALUES ('dynamic_blocks', 1, 'Toggle to turn off dynamically updating slashboxes');
+
+# For plugins/FireHose
+ALTER TABLE firehose_section ADD COLUMN section_color VARCHAR(16) NOT NULL DEFAULT '';
+ALTER TABLE firehose_section_settings ADD COLUMN section_color VARCHAR(16) NOT NULL DEFAULT '';
+
+# 2009-03-05
+UPDATE vars SET value = 'T_2_5_0_245' WHERE name = 'cvs_tag_currentcode';
+
+ALTER TABLE accesslog ADD COLUMN pagemark bigint UNSIGNED DEFAULT 0 NOT NULL AFTER duration;
+
+ALTER TABLE slashd_status ADD COLUMN hostname VARCHAR(255) NOT NULL DEFAULT '' AFTER task;
+INSERT INTO vars (name, value, description) VALUES ('slashd_hostname_default','','Hostname of the machine that slashd tasks run on unless otherwise specified in slashd_status.hostname - blank means slashd runs normally anywhere');
+INSERT INTO vars (name, value, description) VALUES ('logdir_flock','1','flock(LOCK_EX) around appends to log files in logdir?');
+
+# for plugins/DynamicBlocks
+ALTER TABLE blocks DROP PRIMARY KEY;
+ALTER TABLE blocks ADD UNIQUE KEY bid (bid);
+ALTER TABLE blocks ADD COLUMN id mediumint(8) unsigned NOT NULL primary key auto_increment;
+
+# 2009-03-12
+UPDATE vars SET value = 'T_2_5_0_246' WHERE name = 'cvs_tag_currentcode';
+
+DROP TABLE IF EXISTS pagemark;
+CREATE TABLE pagemark (
+	id              int UNSIGNED NOT NULL AUTO_INCREMENT,
+	pagemark        bigint UNSIGNED DEFAULT 0 NOT NULL,
+	ts              datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+	dom             float DEFAULT 0 NOT NULL,
+	js              float DEFAULT 0 NOT NULL,
+	PRIMARY KEY id (id),
+	UNIQUE pagemark (pagemark),
+	KEY ts (ts)
+);
+
+# for plugins/Ajax
+
+# For plugins/Achievements
+DELETE FROM user_achievements WHERE aid = 23;
+DELETE FROM user_achievement_streaks WHERE aid = 23;
+DELETE FROM achievements WHERE aid = 23;
+ALTER TABLE achievements ADD UNIQUE KEY achievement (name);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('the_tagger', 'The Tagger', 'no', 0);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('the_contradictor', 'The Contradictor', 'no', 0);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('1_uid_club', 'Member of the 1 Digit UID Club', 'yes', 1);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('2_uid_club', 'Member of the 2 Digit UID Club', 'yes', 1);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('3_uid_club', 'Member of the 3 Digit UID Club', 'yes', 1);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('4_uid_club', 'Member of the 4 Digit UID Club', 'yes', 1);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('5_uid_club', 'Member of the 5 Digit UID Club', 'yes', 1);
+
+# For plugins/DynamicBlocks (new schema)
+DROP TABLE IF EXISTS dynamic_user_blocks;
+CREATE TABLE dynamic_user_blocks (
+  bid mediumint(8) unsigned NOT NULL auto_increment,
+  portal_id mediumint(8) unsigned NOT NULL default '0',
+  type_id tinyint(1) unsigned NOT NULL default '0',
+  uid mediumint(8) unsigned NOT NULL default '0',
+  title varchar(30) NOT NULL default '',
+  url varchar(128) NOT NULL default '',
+  name varchar(30) NOT NULL default '',
+  description varchar(64) NOT NULL default '',
+  block text,
+  seclev mediumint(8) unsigned NOT NULL default '0',
+  created datetime NOT NULL default '0000-00-00 00:00:00',
+  last_update datetime NOT NULL default '0000-00-00 00:00:00',
+  PRIMARY KEY (bid),
+  UNIQUE KEY name (name),
+  UNIQUE KEY block (name, uid)
+);
+
+# for plugins/Tags
+ALTER TABLE tagboxlog_feeder ADD COLUMN claimed datetime DEFAULT NULL AFTER importance;
+
+# 2009-03-19
+UPDATE vars SET value = 'T_2_5_0_247' WHERE name = 'cvs_tag_currentcode';
+
+DELETE FROM blocks WHERE bid = 'linuxcom';
+DELETE FROM dynamic_user_blocks WHERE name = 'linuxcom';
+ALTER TABLE badpasswords CHANGE uid uid mediumint UNSIGNED NOT NULL DEFAULT 0;
+
+# for themes/slashdot
+REPLACE INTO topics (tid,keyword,textname,series,image,width,height,submittable,searchable,storypickable) VALUES (249, 'oracle', 'Oracle', 'no', 'topicoracle.png', 97, 19, 'yes', 'yes', 'yes');
+
+# for plugins/Achievements
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('the_maker', 'The Maker', 'no', 0);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('comedian', 'Comedian', 'no', 0);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('april_fool', 'The April Fool', 'no', 0);
+INSERT INTO achievements (name, description, repeatable, increment) VALUES ('comment_upmodded', 'Had a Comment Modded Up', 'no', 0);
+
+# for plugins/Messages
+INSERT INTO message_codes (code, type, seclev, modes, delivery_bvalue) VALUES (25, 'Remarks', 100, '', 2);
+
+# for plugins/Sphinx
+CREATE TABLE `sphinx_index` (
+  `src` smallint(5) unsigned NOT NULL,
+  `name` varchar(48) NOT NULL,
+  `asynch` tinyint(3) unsigned NOT NULL default '1',
+  `laststart` datetime NOT NULL default '2000-01-01 00:00:00',
+  `frequency` int(10) unsigned NOT NULL default '86400',
+  PRIMARY KEY  (`src`),
+  UNIQUE KEY `name` (`name`)
+);
+INSERT INTO sphinx_index (src, name, asynch, laststart, frequency) VALUES (0, 'main', 1, '2000-01-01 00:00:00', 86400);
+INSERT INTO sphinx_index (src, name, asynch, laststart, frequency) VALUES (1, 'delta1', 0, '2000-01-01 00:00:00', 900);
+INSERT INTO sphinx_index (src, name, asynch, laststart, frequency) VALUES (2, 'delta2', 0, '2000-01-01 00:00:00', 5);
+
+# 2009-03-26
+UPDATE vars SET value = 'T_2_5_0_248' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Achievements
+ALTER TABLE dynamic_user_blocks MODIFY COLUMN title varchar(64) NOT NULL default '';
+
+# for plugins/FireHose
+ALTER TABLE firehose_update_log  CHANGE id id int unsigned not null auto_increment;
+ALTER TABLE firehose_setting_log CHANGE id id int unsigned not null auto_increment;
+
+# for plugins/Achievements
+INSERT INTO vars (name, value, description) VALUES ('ach_maker_adlesstime', '259200', 'After a maker_mode user turns off ads, how long does the adless state persist, in seconds');
+
+# 2009-03-31
+# Please run themes/slashdot/sql/mysql/upgrades
+
+# 2009-03-31
+UPDATE vars SET value = 'T_2_5_0_249' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Achievements
+ALTER TABLE user_achievements ADD INDEX aid_exponent (aid, exponent);
+
+# for plugins/Ajax
+UPDATE ajax_ops SET reskey_name='ajax_user_static' WHERE op='enable_maker_adless';
+
+ALTER TABLE topics ADD usesprite ENUM("no","yes") DEFAULT "no" NOT NULL;
+# Please run themes/slashdot/sql/mysql/upgrades
+
+INSERT INTO vars (name, value, description) VALUES ("article_link_story_dynamic", "0", "Change default dynamic status for story linking");
+INSERT INTO vars (name, value, description) VALUES ("show_maker_mode", "0", "Display ability to enable maker mode");
+
+# 2009-04-02
+UPDATE vars SET value = 'T_2_5_0_250' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/DynamicBlocks
+
+# 2009-04-09
+UPDATE vars SET value = 'T_2_5_0_251' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Messages
+UPDATE message_codes SET seclev = 1 WHERE type = 'Achievement';
+
+# for plugins/Firehose
+
+# for plugins/FireHose
+UPDATE firehose_view set tab_display="yes" where viewname="userhomepage";
+ALTER TABLE firehose_view ADD COLUMN editable ENUM("no","yes") DEFAULT "yes";
+UPDATE firehose_view SET editable = "no" WHERE viewname like 'user%' OR  viewname = "metamod";
+
+# 2009-04-16
+UPDATE vars SET value = 'T_2_5_0_252' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Firehose
+
+# for plugins/FireHose
+UPDATE ajax_ops SET reskey_name="ajax_base" WHERE op in ("firehose_get_updates");
+UPDATE ajax_ops SET reskey_name="ajax_base_static" WHERE op in("firehose_set_options");
+ALTER TABLE firehose_view ADD COLUMN shortcut ENUM ("yes","no") DEFAULT "no", ADD COLUMN short_url VARCHAR(32) DEFAULT "" NOT NULL, ADD COLUMN link_icon ENUM ("no","yes") DEFAULT "no", ADD COLUMN placeholder ENUM("no","yes") DEFAULT "no", ADD COLUMN addable ENUM("no", "yes") DEFAULT "no", ADD COLUMN removable ENUM("no","yes") DEFAULT "no";
+UPDATE firehose_view SET shortcut="yes", short_url = viewname WHERE viewname IN ("stories","popular","recent","daddypants");
+UPDATE firehose_view SET short_url = "~{nickname}", link_icon = "yes" WHERE viewname="userhomepage";
+
+# 2009-04-23
+UPDATE vars SET value = 'T_2_5_0_253' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/WoW
+
+# 2009-04-30
+UPDATE vars SET value = 'T_2_5_0_254' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/DynamicBlocks
+ALTER TABLE dynamic_user_blocks ADD UNIQUE INDEX idx_uid_name (uid, name);
+ALTER TABLE dynamic_user_blocks DROP INDEX block;
+
+INSERT INTO vars (name, value, description) VALUES ('index_anon_for_msie6', 'index.pl', 'Resolve / to this script for MSIE 6 users');
+INSERT INTO vars (name, value, description) VALUES ('index_anon_for_msie7', 'index2.pl', 'Resolve / to this script for MSIE 7 users');
+INSERT INTO vars (name, value, description) VALUES ('index_anon_for_msie8', 'index2.pl', 'Resolve / to this script for MSIE 8 users');
+INSERT INTO vars (name, value, description) VALUES ('index_anon_for_iphone', 'index2.pl', 'Resolve / to this script for iPhone users');
+INSERT INTO vars (name, value, description) VALUES ('index_anon_for_firefox', 'index2.pl', 'Resolve / to this script for Firefox users');
+INSERT INTO vars (name, value, description) VALUES ('index_anon_for_safari', 'index2.pl', 'Resolve / to this script for Safari users');
+INSERT INTO vars (name, value, description) VALUES ('index_anon_for_other', 'index2.pl', 'Resolve / to this script for all other users');
+
+# for plugins/DynamicBlocks
+ALTER TABLE dynamic_user_blocks ADD INDEX idx_portalid (portal_id);
+
+# SLASHDOT LAST UPDATED HERE
+
+
+# for plugins/Tags
+
+# 2009-05-05
+
+INSERT INTO css (rel,type,media,file,skin,admin,ctid,lowbandwidth,title,layout) VALUES ('stylesheet','text/css','screen, projection','yui_idle.css','idle','no','6','no','','yui');
+
+# PLEASE DELETE symlinks to lick*css*
+
+# 2009-05-07
+UPDATE vars SET value = 'T_2_5_0_255' WHERE name = 'cvs_tag_currentcode';
+
+UPDATE blocks SET rdf = 'http://rss.sciam.com/ScientificAmerican-Global' WHERE bid = 'sciam';
+
+# for plugins/WoW
+INSERT INTO vars (name, value, description) VALUES ('wow_retrieval_pause', '3', 'Seconds to wait between all WoW retrievals');
+
+# for plugins/Firehose
+UPDATE firehose_view SET shortcut="yes", short_url = viewname WHERE viewname IN ("search");
+
+# 2009-05-14
+UPDATE vars SET value = 'T_2_5_0_256' WHERE name = 'cvs_tag_currentcode';
+
+# For plugins/Firehose
+ALTER TABLE file_queue MODIFY COLUMN action enum('upload','thumbnails','sprite');
+INSERT INTO vars (name, value, description) VALUES ('firehose_link_article2', '0', 'True to link article2 from index2');
+
+# 2009-05-21
+UPDATE skins SET index_handler='index2.pl' WHERE index_handler='index.pl';
+INSERT INTO vars (name, value, description) VALUES ('index_anon_firehoseshtml', '0', 'Redirect index2.pl requests to firehose.shtml for anonymous, non-param requests?');
+INSERT INTO users_param (param_id, uid, name, value) SELECT NULL, uid, 'index_classic', '1' FROM users_param WHERE name='index_beta' AND value='0';
+
+
+# 2009-05-21
+UPDATE vars SET value = 'T_2_5_0_257' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Sphinx
+INSERT INTO vars (name, value, description) VALUES ('sphinx_indexer', '/usr/local/sphinx/bin/indexer', 'The path of sphinx indexer command');
+
+UPDATE firehose_view SET filter = '"hose:{nickname}"' WHERE viewname = "userfirehose";
+
+# 2009-05-28
+UPDATE vars SET value = 'T_2_5_0_258' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('openid_consumer_allow', '1', 'Allow users to authenticate using OpenID, and manage OpenID identities.');
+
+DROP TABLE IF EXISTS users_openid;
+CREATE TABLE users_openid (
+	opid int UNSIGNED NOT NULL auto_increment,
+	openid_url VARCHAR(255) NOT NULL,
+	uid mediumint UNSIGNED NOT NULL,
+	PRIMARY KEY (opid),
+	UNIQUE (openid_url),
+	INDEX (uid)
+);
+
+DROP TABLE IF EXISTS users_openid_reskeys;
+CREATE TABLE users_openid_reskeys (
+	oprid int UNSIGNED NOT NULL auto_increment,
+	openid_url VARCHAR(255) NOT NULL,
+	reskey CHAR(20) DEFAULT '' NOT NULL,
+	PRIMARY KEY (oprid),
+	INDEX (openid_url),
+	INDEX (reskey)
+);
+
+
+##### openid
+### checks
+
+### vars
+
+INSERT INTO vars (name, value, description) VALUES ('pngnq', '/usr/local/bin/pngnq', 'Path to pngnq');
+
+# Please run themes/slashdot/sql/mysql/upgrades
+
+# 2009-06-04
+UPDATE vars SET value = 'T_2_5_0_259' WHERE name = 'cvs_tag_currentcode';
+
+INSERT INTO vars (name, value, description) VALUES ('openid_consumer_secret', rand(), 'Consumer secret for OpenID');
+
+# FireHose updates
+
+# 2009-06-11
+UPDATE vars SET value = 'T_2_5_0_260' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Ajax
+
+
+# for plugins/Tags
+UPDATE tagcommand_adminlog SET cmdtype='\\' WHERE cmdtype='^';
+
+# 2009-06-29
+UPDATE vars SET value = 'T_2_5_0_262' WHERE name = 'cvs_tag_currentcode';
+
+# 2009-07-01
+UPDATE vars SET value = 'T_2_5_0_263' WHERE name = 'cvs_tag_currentcode';
+
+# apply themes/slashdot/sql/mysql/upgrades 2009-07-02 here
+# if this ADD UNIQUE fails, resolve manually before continuing
+ALTER TABLE topics ADD UNIQUE (keyword);
+ALTER TABLE discussions MODIFY topic INT UNSIGNED;
+ALTER TABLE pollquestions MODIFY topic INT UNSIGNED NOT NULL;
+ALTER TABLE skins MODIFY nexus INT UNSIGNED NOT NULL;
+ALTER TABLE stories MODIFY tid INT UNSIGNED;
+ALTER TABLE story_topics_chosen MODIFY tid INT UNSIGNED NOT NULL;
+ALTER TABLE story_topics_rendered MODIFY tid INT UNSIGNED NOT NULL;
+ALTER TABLE submissions MODIFY tid INT UNSIGNED NOT NULL;
+ALTER TABLE topics MODIFY tid INT UNSIGNED NOT NULL AUTO_INCREMENT;
+ALTER TABLE topic_nexus MODIFY tid INT UNSIGNED NOT NULL;
+ALTER TABLE topic_nexus_dirty MODIFY tid INT UNSIGNED NOT NULL;
+ALTER TABLE topic_nexus_extras MODIFY tid INT UNSIGNED NOT NULL;
+ALTER TABLE topic_param MODIFY tid INT UNSIGNED NOT NULL;
+ALTER TABLE topic_parents MODIFY tid INT UNSIGNED NOT NULL, MODIFY parent_tid INT UNSIGNED NOT NULL;
+ALTER TABLE firehose_topics_rendered MODIFY tid INT UNSIGNED NOT NULL;
+UPDATE stories SET tid=NULL WHERE tid=0;
+DELETE FROM story_topics_chosen WHERE tid=0;
+DELETE FROM story_topics_rendered WHERE tid=0;
+SELECT @news := tid FROM topics WHERE keyword='news';
+UPDATE pollquestions SET topic=@news WHERE topic=0;
+UPDATE submissions SET tid=@news WHERE tid=0;
+UPDATE discussions SET topic=NULL WHERE topic=0;
+# run utils/convertTidToTagnameid here
+UPDATE skins SET last_rewrite=DATE_SUB(NOW(), INTERVAL 7 DAY);
+# for plugins/Sphinx
+UPDATE sphinx_index SET laststart=DATE_SUB(NOW(), INTERVAL 7 DAY);
+
+##### edit-submit
+
+### checks
+
+### vars
+
+
+#For plugins/Tags
+UPDATE ajax_ops SET reskey_name="ajax_base_static" WHERE  op="tags_setget_combined";
+
+### captcha mod
+UPDATE humanconf_questions SET question="To confirm you're not a script, please type the word in this image:" WHERE hcqid=1;
+
+# 2009-07-09
+UPDATE vars SET value = 'T_2_5_0_264' WHERE name = 'cvs_tag_currentcode';
+
+### another captcha text modification
+UPDATE humanconf_questions SET question="Confirm your humanity by telling us what you see or hear" WHERE hcqid=1;
+
+# For plugins/Edit
+
+# for plugins/HumanConf
+UPDATE humanconf_questions SET question='<span class="humanconf_questions">Confirm your humanity by telling us what you see or hear</span>' WHERE hcqid=1;
+
+# For plugins/Reskey
+
+
+##### session
+
+### checks
+
+### vars
+
+# 2009-07-16
+UPDATE vars SET value = 'T_2_5_0_265' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+INSERT INTO globj_types VALUES (NULL, 'tagnames');
+
+# Captcha text modification
+# for plugins/HumanConf
+UPDATE humanconf_questions SET question = '<span class="humanconf_questions">Confirm your humanity by telling us what you see or hear:</span>' WHERE hcqid=1;
+
+# process themes/slashdot/sql/mysql/upgrades additions
+
+# for plugins/FireHose
+
+# 2009-07-30
+UPDATE vars SET value = 'T_2_5_0_266' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Edit
+
+# 2009-08-06
+UPDATE vars SET value = 'T_2_5_0_267' WHERE name = 'cvs_tag_currentcode';
+
+# 2009-08-09
+# for plugins/FireHose
+
+# Captcha text modification
+# for plugins/HumanConf
+UPDATE humanconf_questions SET question = '<div class="yui-u first"><span class="humanconf_questions">Confirm your humanity by telling us what you see or hear:</span></div>' WHERE hcqid=1;
+
+# 2009-08-11
+# for plugins/Ajax
+
+
+# Captcha text modification
+# for plugins/HumanConf
+UPDATE humanconf_questions SET question = '<span class="humanconf_questions">Prove yourself: </span>' WHERE hcqid=1;
+
+# 2009-08-09
+UPDATE vars SET value = 'T_2_5_0_268' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Edit
+
+
+# for plugins/Tags
+
+# 2009-08-27
+UPDATE vars SET value = 'T_2_5_0_269' WHERE name = 'cvs_tag_currentcode';
+
+
+ALTER TABLE skins ADD COLUMN othername VARCHAR(30) NOT NULL DEFAULT '' AFTER name;
+UPDATE skins SET othername=name;
+
+# 2009-09-03
+UPDATE vars SET value = 'T_2_5_0_270' WHERE name = 'cvs_tag_currentcode';
+
+DROP TABLE IF EXISTS user_event_blocks;
+DROP TABLE IF EXISTS user_event_types;
+DROP TABLE IF EXISTS user_events;
+DROP TABLE IF EXISTS dynamic_user_blocks_oldschema;
+
+# For plugins/Submit
+INSERT INTO vars (name, value, description) VALUES ('submit_redirect_submit2', '0', 'Redirect submit to submit2');
+
+# 2009-09-10
+UPDATE vars SET value = 'T_2_5_0_271' WHERE name = 'cvs_tag_currentcode';
+
+# for plugins/Tags
+
+# 2009-09-17
+UPDATE vars SET value = 'T_2_5_0_272' WHERE name = 'cvs_tag_currentcode';
+
+
+# new 12
+DELETE FROM reskey_resources WHERE rkrid = 12;
+DELETE FROM reskey_resource_checks WHERE rkrid = 12;
+DELETE FROM reskey_vars WHERE rkrid = 12;
+DELETE FROM reskeys WHERE rkrid = 12;
+
+

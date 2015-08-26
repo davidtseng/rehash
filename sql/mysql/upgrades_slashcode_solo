@@ -1,0 +1,64 @@
+
+# Turn off meta-moderation as it breaks stuff with our setup
+UPDATE vars SET value = 0 WHERE name = 'm2';
+
+#######################################
+# SoylentNews Slashcode updates 15_03 #
+#######################################
+
+UPDATE vars SET value = 'slashcode_15_03' WHERE name = 'cvs_tag_currentcode';
+
+# Subscription Updates
+INSERT INTO vars (name, value, description) VALUES ('subscribe_annual_days','365','How many days for annual subs');
+INSERT INTO vars (name, value, description) VALUES ('subscribe_semiannual_days','180','How many days for semiannual subs');
+INSERT INTO vars (name, value, description) VALUES ('subscribe_monthly_days','30','How many days for montly subs');
+INSERT INTO vars (name, value, description) VALUES ('subscribe_annual_amount','20.00', 'How much an annual subscription costs, in U.S. dollars with 2 decimal places');
+INSERT INTO vars (name, value, description) VALUES ('subscribe_semiannual_amount','12.00', 'How much a semiannual subscription costs, in U.S. dollars with 2 decimal places');
+INSERT INTO vars (name, value, description) VALUES ('subscribe_monthly_amount','4.00', 'How much a montly subscription costs, in U.S. dollars with 2 decimal places');
+INSERT INTO vars (name, value, description) VALUES ('subscribe_ac_default_gift','6', 'Default uid to get AC users gift subs');
+INSERT INTO vars (name, value, description) VALUES ('paypal_sub_image_src', '//www.paypalobjects.com/en_US/i/btn/x-click-but20.gif', 'URL of subscribe button image to click on');
+UPDATE vars SET value = '//www.paypalobjects.com/en_US/i/btn/x-click-but01.gif' WHERE name = 'paypal_image_src';
+
+# Moderation Updates
+ALTER TABLE modreasons ADD COLUMN ordered tinyint UNSIGNED DEFAULT '50' NOT NULL;
+UPDATE modreasons SET name = 'Touché' WHERE id = 13;
+UPDATE modreasons SET ordered = 0 WHERE id = 0;
+UPDATE modreasons SET ordered = 2 WHERE id = 5;
+UPDATE modreasons SET ordered = 3 WHERE id = 6;
+UPDATE modreasons SET ordered = 4 WHERE id = 7;
+UPDATE modreasons SET ordered = 5 WHERE id = 8;
+UPDATE modreasons SET ordered = 6 WHERE id = 13;
+UPDATE modreasons SET ordered = 7, karma = 0 WHERE id = 10;
+UPDATE modreasons SET ordered = 9 WHERE id = 12;
+UPDATE modreasons SET ordered = 10 WHERE id = 1;
+UPDATE modreasons SET ordered = 11 WHERE id = 4;
+UPDATE modreasons SET ordered = 12 WHERE id = 2;
+UPDATE modreasons SET ordered = 13 WHERE id = 3;
+UPDATE modreasons SET ordered = 101 WHERE id = 11;
+
+# Do not allow users to view the comments of a different user when looking at that user's info page (to limit mod bombing)
+INSERT INTO vars (name, value, description) VALUES ('allow_other_users_comments', '0', 'Allow users to view the comments of other users the other users info page');
+
+# Mod Bomb vars
+INSERT INTO vars (name, value, description) VALUES ('mod_mb_floor', '3', 'Min amount of downmods needed to trigger mod bomb list');
+INSERT INTO vars (name, value, description) VALUES ('mod_mb_time_span', '72', 'Lenght of search span for mod bomb search in hours.');
+
+
+# Add a karma floor for downmods
+INSERT INTO vars (name, value, description) VALUES ("downmod_karma_floor", "10", "Below this level of karma, users cannot use negative moderations");
+
+# Require prior moderation for Overrated/Underrated
+ALTER TABLE modreasons ADD COLUMN needs_prior_mod tinyint UNSIGNED DEFAULT '0' NOT NULL;
+UPDATE modreasons SET needs_prior_mod = 1 WHERE id = 9;
+UPDATE modreasons SET needs_prior_mod = 1 WHERE id = 10;
+
+# MP2 Release
+
+alter table skins add column theme varchar(255) default '';
+
+# Need to drop 'NOT NULL' due to table change
+ALTER TABLE submissions MODIFY comment VARCHAR(255) null;
+ALTER TABLE submissions MODIFY mediatype enum('text','none','video','image','audio') null DEFAULT 'none';
+ALTER TABLE submissions MODIFY name varchar (50) null;
+ALTER TABLE stories ADD COLUMN notes text;
+
