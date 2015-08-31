@@ -13,7 +13,7 @@ a:hover {
 	border-radius: 5px 5px 0 0;
 }
 
-.article .generaltitle h3 a, .generaltitle div.title h3 {
+.article .generaltitle h3 a, .generaltitle div.title h3, #journalgeneric .title h3 {
 	color: #EBE2A5;
 }
 
@@ -196,4 +196,14 @@ fieldset {
 }
 #usermenu {
 	background: none;
+}
+#journalgeneric .title h3 {
+        padding: .3em .8em .2em .8em;
+}
+#journalgeneric .article {
+	padding-bottom: 15px;
+}
+#journalgeneric div.intro {
+	font-family: Verdana, Geneva, "Bitstream Vera Sans", "DejaVu Sans", sans-serif;
+	font-size: small;
 }
