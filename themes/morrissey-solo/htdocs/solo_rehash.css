@@ -8,7 +8,7 @@ a:hover {
 	font-size: 1.0em;
 }
 
-.article div.title, .generaltitle div.title {
+.article div.title, .generaltitle div.title, .search-results h4 {
 	background: #3C3228;
 	border-radius: 5px 5px 0 0;
 }
@@ -30,7 +30,7 @@ div.intro, div.full {
 	font-size: 1.0em;
 }
 
-.details, .body {
+.body {
 	border-left: 1px solid #3c3228;
 	border-right: 1px solid #3c3228;
 	background-color: #d3d1c2;
@@ -38,6 +38,9 @@ div.intro, div.full {
 }
 
 .details {
+	border-left: 1px solid #3c3228;
+	border-right: 1px solid #3c3228;
+	background-color: #d3d1c2;
 	font-size: x-small;
 }
 
@@ -169,4 +172,18 @@ div.intro, div.full {
 }
 .barPercent, .barVotes {
 	background: #cfc498;
+}
+fieldset {
+	border: 1px solid #3c3228;
+}
+.search-results {
+	background: #d3d1c2;
+	border-radius: 5px 5px 0 0;
+}
+.search-results .data, .search-results .author, .search-results .intro {
+	border-left: 1px solid #3c3228;
+	border-right: 1px solid #3c3228;
+}
+.search-results .details {
+	border-bottom: 1px solid #3c3228;
 }
