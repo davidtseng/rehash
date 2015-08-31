@@ -191,3 +191,9 @@ fieldset {
 .search-results .details {
 	border-bottom: 1px solid #3c3228;
 }
+#olderstuff-content ul li a, #slashboxes #olderstuff-content ul li a {
+	font-size: 1.3em;
+}
+#usermenu {
+	background: none;
+}
