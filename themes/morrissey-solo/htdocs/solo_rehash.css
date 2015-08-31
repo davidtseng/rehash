@@ -17,8 +17,12 @@ a:hover {
 	color: #EBE2A5;
 }
 
-div.intro, div.full {
+div.intro, div.full, div#hof, div#hof .generalbody {
 	font-family: Times New Roman, serif;
+}
+
+div#hof .generalbody {
+	font-size: medium;
 }
 
 .commentBody {
