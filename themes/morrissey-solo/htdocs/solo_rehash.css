@@ -1,0 +1,172 @@
+/* rehash */
+
+a:hover {
+	text-decoration: underline;
+}
+
+.article .body {
+	font-size: 1.0em;
+}
+
+.article div.title, .generaltitle div.title {
+	background: #3C3228;
+	border-radius: 5px 5px 0 0;
+}
+
+.article .generaltitle h3 a, .generaltitle div.title h3 {
+	color: #EBE2A5;
+}
+
+div.intro, div.full {
+	font-family: Times New Roman, serif;
+}
+
+.commentBody {
+	font-family: Verdana,Arial,Helvetica;
+    	font-size: 13px;
+}
+
+.generaltitle h3 {
+	font-size: 1.0em;
+}
+
+.details, .body {
+	border-left: 1px solid #3c3228;
+	border-right: 1px solid #3c3228;
+	background-color: #d3d1c2;
+	background-image: url(http://cf.morrissey-solo.com/patt2.gif);
+}
+
+.details {
+	font-size: x-small;
+}
+
+.body {
+	border-bottom: 1px solid #3c3228;
+}
+
+#slashboxes div.title {
+	background: #3C3228;
+	border-radius: 5px 5px 0 0;
+}
+#slashboxes h4 {
+	color: #E4E0D1;
+	font-size: x-small;
+}
+#slashboxes div.content {
+	background: #D3D1C2;
+	border-left: 1px solid #3c3228;
+	border-right: 1px solid #3c3228;
+	border-bottom: 1px solid #3c3228;
+	font-size: x-small;
+}
+
+#commentwrap {
+	background: none;
+}
+.commentBox {
+	background: #3C3228;
+	color: #E4E0D1;
+	font-family: Times New Roman, serif;
+	font-size: small;
+	margin-top: 3px;
+	padding: 3px;
+}
+.commentBox a {
+    color: #e4e0d1;
+}
+.commentBox a:visited {
+    color: #cecbc0;
+}
+.commentBox a:hover {
+    color: #fff;
+}
+.commentBoxForm {
+	background: #DDD9C6;
+	font-size: small;
+	padding-bottom: 0;
+}
+.commentTop .title {
+	background: #3c3228;
+	color: #EBE2A5;
+	font-family: Times New Roman, serif;
+	font-size: medium;
+}
+.commentTop .title a, .commentTop .title a:visited, .commentTop .title h4 {
+	color: #EBE2A5;
+	font-family: Times New Roman, serif;
+}
+.commentTop .details {
+	background: #d3d1c2;
+	border-left: 1px solid #3c3228;
+	border-right: 1px solid #3c3228;
+	border-bottom: none;
+}
+.commentTop .score {
+	font-weight: normal;
+}
+.commentBody {
+	background: #d3d1c2;
+	border-left: 1px solid #3c3228;
+	border-right: 1px solid #3c3228;
+	border-bottom: 1px solid #3c3228;
+	padding: 1em;
+}
+.commentBody .details {
+	border-left: none;
+	border-right: none;
+	font-family: Times New Roman, serif;
+	font-size: medium;
+	font-weight: bold;
+	line-height: 100%;
+	margin-top: 10px;
+}
+.commentBody .otherdetails {
+	font-size: small;
+	font-weight: normal;
+}
+.commentBody .otherdetails .ctime {
+	font-style: italic;
+}
+.commentBody .sig {
+	font-style: italic;
+	font-size: 12px;
+}
+.comment_footer {
+	background: #DDD9C6;
+	padding: 3px;
+}
+.commentSub {
+	background: none;
+	border: none;
+}
+#commentlisting ul {
+	border-left: none;
+	list-style-position: inside;
+	padding-left: 1.5em;
+	margin-bottom: 0;
+}
+#commentlisting ul li {
+	font-family: Times New Roman, serif;
+	font-size: medium;
+	line-height: 75%;
+	list-style: inherit;
+}
+#commentlisting ul li.comment {
+	line-height: 100%;
+	list-style: none;
+}
+
+.pollbody {
+	max-width: 600px;
+}
+.bar {
+	border: 1px #cfc498 solid;
+}
+.barColor {
+	background: #666600;
+	border: 1px #3d3929 solid;
+}
+.barPercent, .barVotes {
+	background: #cfc498;
+}
