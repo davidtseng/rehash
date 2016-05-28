@@ -35,7 +35,7 @@ sub countStories {
 		 AND stories.discussion=discussions.id
 		 AND stories.stoid=story_text.stoid
 		 $dnc_clause",
-		'ORDER BY commentcount DESC LIMIT 10'
+		'ORDER BY commentcount DESC LIMIT 30'
 	);
 
 	return $stories;
@@ -45,7 +45,7 @@ sub countStories {
 sub countPollquestions {
 	my($self) = @_;
 	my $pollquestions = $self->sqlSelectAll("voters,question,qid", "pollquestions",
-		"1=1", "ORDER by voters DESC LIMIT 10"
+		"1=1", "ORDER by voters DESC LIMIT 20"
 	);
 	return $pollquestions;
 }
@@ -103,7 +103,7 @@ sub countStoriesTopHits {
 		 AND story_param.name IS NULL
 		 AND primaryskid > 0
 		 AND stories.uid=users.uid',
-		'ORDER BY hits DESC LIMIT 10'
+		'ORDER BY hits DESC LIMIT 30'
 	);
 
 	my $reader = getObject('Slash::DB', { db_type => 'reader' });
