@@ -55,7 +55,9 @@ sub createAutoPollFromStory {
 sub getCurrentQidForSkid {
 	my($self, $skid) = @_;
 	my $tree = $self->getTopicTree();
-	my $nexus_id = $self->getNexusFromSkid($skid);
+	#my $nexus_id = $self->getNexusFromSkid($skid);
+	# hardcode nexus_id to prevent error
+	my $nexus_id = 1;
 	my $nexus = $tree->{$nexus_id};
 	return $nexus ? $nexus->{current_qid} : 0;
 }
