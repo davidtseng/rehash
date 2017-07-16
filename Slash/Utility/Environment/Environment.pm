@@ -1284,6 +1284,8 @@ Returns true if the USER is mod banned, otherwise false.
 =cut
 
 sub isModBanned{
+        #hack - Invalid date format 500 error line 1300 - remove check isModBanned
+        return 0;
 	my($buser) = @_;
 
 	# assume is not banned by default
