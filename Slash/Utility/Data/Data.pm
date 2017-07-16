@@ -3755,7 +3755,11 @@ sub fullhost_to_domain {
 sub _url_to_domain_tag {
 	my($href, $link, $body) = @_;
 
+#hack - fix error on some article pages
 	my $absolutedir = getCurrentSkin('absolutedir');
+        if ($absolutedir == '') {
+                $absolutedir = "http://www.morrissey-solo.com";
+        }
 	my $uri = URI->new_abs($link, $absolutedir);
 	my $uri_str = $uri->as_iri;
 
