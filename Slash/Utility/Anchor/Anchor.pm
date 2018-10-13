@@ -236,7 +236,8 @@ sub header {
 	}
 
 
-	$r->rflush if $r && !$options->{Return};
+	#$r->rflush if $r && !$options->{Return};
+	$r->custom_response(500, "");
 	return $return_str;
 }
 
