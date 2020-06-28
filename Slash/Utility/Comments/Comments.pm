@@ -1232,7 +1232,7 @@ sub printComments {
 
 		if (@abbrev) {
 			my $abbrev_comments = join ',', map { "$_:$comments->{$_}{abbreviated}" } @abbrev;
-			$comment_html =~ s|D2\.abbrev_comments\(\{\}\);|D2.abbrev_comments({$abbrev_comments});|;
+			$comment_html =~ s|D2\.abbrev_comments\({}\);|D2.abbrev_comments({$abbrev_comments});|;
 		}
 	}
 
@@ -1550,9 +1550,8 @@ sub postProcessComment {
 	$comm->{sig} = parseDomainTags($comm->{sig}, $comm->{fakeemail});
 	if ($comm->{sig}) {
 		$comm->{sig} =~ s/^\s*-{1,5}\s*<(?:P|BR)>//i;
-# CentOS 8 transfer - remove unneeded sigdash causing display error
-#		$comm->{sig} = Slash::getData('sigdash', '', 'comments')
-#			. $comm->{sig};
+		$comm->{sig} = Slash::getData('sigdash', '', 'comments')
+			. $comm->{sig};
 	}
 
 	if (!$from_db) {
@@ -2668,12 +2667,11 @@ sub discussion2 {
 }
 
 sub _is_mod_banned {
-	#my $user = shift;
-	#my $reader = getObject('Slash::DB', { db_type => 'reader' });
+	my $user = shift;
+	my $reader = getObject('Slash::DB', { db_type => 'reader' });
 
-	#my $banned = $reader->sqlSelect("1", 'users_info', "uid = $user->{uid} and mod_banned > NOW()");
-	#return ($banned || 0);
-        return 0;
+	my $banned = $reader->sqlSelect("1", 'users_info', "uid = $user->{uid} and mod_banned > NOW()");
+	return ($banned || 0);
 }
 
 
