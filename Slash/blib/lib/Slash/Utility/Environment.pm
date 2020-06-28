@@ -310,6 +310,10 @@ sub getCurrentUser {
 		$user = $static_user ||= {};
 	}
 
+# CentOS 8 transfer fix - Always return anonymous user
+#$user = $static_user ||= {};
+#$user->{is_anon} = 1;
+
 	return $user->{$value} if defined $value;
 	return $user;
 }
